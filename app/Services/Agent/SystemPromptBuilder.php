@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Services\Agent;
+
+use App\Models\BotConfig;
+use App\Models\DeliveryZone;
+use App\Models\KnowledgeItem;
+use App\Models\Product;
+
+/**
+ * Arma el system prompt del agente: plantilla base + config del bot +
+ * conocimiento activo + catálogo con precios + zonas + contexto del cliente.
+ */
+class SystemPromptBuilder
+{
+    public function build(AgentContext $context): string
+    {
+        $tenant = $context->tenant;
+        $config = BotConfig::first();
+
+        $agentName = $config?->agent_name ?? 'Asistente';
+        $tone = $config?->tone ?? 'amable';
+
+        $partes = [];
+
+        // --- Identidad y reglas base ---
+        $partes[] = <<<TXT
+        Eres {$agentName}, el asistente de pedidos por WhatsApp de "{$tenant->name}".
+        Tu trabajo es atender al cliente con un tono {$tone}, resolver sus dudas con la información
+        de la empresa, armar su pedido y capturar los datos de entrega.
+
+        Reglas que debes cumplir siempre:
+        - Reconoce al cliente por su número con buscar_cliente. Si ya pidió antes, no le pidas todos los datos de nuevo.
+        - Usa SIEMPRE los precios y totales que devuelven las herramientas. Nunca inventes ni calcules precios tú.
+        - Nunca inventes disponibilidad, cobertura ni tiempos de entrega que no estén en la información dada.
+        - Para agendar necesitas fecha Y franja horaria (mañana, tarde u hora exacta). No cierres un pedido sin ambas.
+        - Si no puedes resolver algo o el cliente lo pide, usa escalar_a_humano.
+        - Responde en español, breve y claro, como en un chat de WhatsApp.
+        TXT;
+
+        // --- Instrucciones extra del dueño ---
+        if ($config && filled($config->extra_instructions)) {
+            $partes[] = "Instrucciones adicionales del negocio:\n" . trim($config->extra_instructions);
+        }
+
+        // --- Catálogo con precios reales ---
+        $productos = Product::where('active', true)->orderBy('name')->get();
+        if ($productos->isNotEmpty()) {
+            $lineas = $productos->map(function (Product $p): string {
+                $precio = number_format((float) $p->price, 2);
+                $tipo = $p->type === 'recarga' ? 'recarga' : 'venta';
+                return "- [#{$p->id}] {$p->name}: S/ {$precio} por {$p->unit} ({$tipo})";
+            })->implode("\n");
+            $partes[] = "Catálogo de productos (usa estos IDs y precios):\n{$lineas}";
+        } else {
+            $partes[] = 'El negocio todavía no cargó productos.';
+        }
+
+        // --- Zonas de entrega ---
+        $zonas = DeliveryZone::where('active', true)->orderBy('name')->get();
+        if ($zonas->isNotEmpty()) {
+            $lineas = $zonas->map(function (DeliveryZone $z): string {
+                $costo = number_format((float) $z->delivery_fee, 2);
+                $cobertura = filled($z->coverage) ? " — {$z->coverage}" : '';
+                return "- [#{$z->id}] {$z->name}: envío S/ {$costo}{$cobertura}";
+            })->implode("\n");
+            $partes[] = "Zonas de entrega:\n{$lineas}";
+        }
+
+        // --- Base de conocimiento (respetando el límite de tamaño) ---
+        $conocimiento = $this->knowledgeBlock();
+        if ($conocimiento !== '') {
+            $partes[] = "Información de la empresa:\n{$conocimiento}";
+        }
+
+        // --- Contexto del cliente si ya se identificó ---
+        if ($context->customer) {
+            $c = $context->customer;
+            $nombre = $c->name ?? '(sin nombre)';
+            $partes[] = "Cliente identificado: {$nombre}, teléfono {$c->phone}, ID {$c->id}.";
+        }
+
+        return implode("\n\n", $partes);
+    }
+
+    /**
+     * Une el conocimiento activo respetando MAX_TOTAL_CHARS. Si se pasa, corta y
+     * avisa (no revienta el prompt ni encarece la llamada).
+     */
+    private function knowledgeBlock(): string
+    {
+        $items = KnowledgeItem::where('active', true)->orderBy('id')->get();
+
+        $buffer = '';
+        $limite = KnowledgeItem::MAX_TOTAL_CHARS;
+
+        foreach ($items as $item) {
+            $bloque = "• {$item->title}: {$item->content}\n";
+
+            if (mb_strlen($buffer) + mb_strlen($bloque) > $limite) {
+                $buffer .= "(Se omitió parte del conocimiento por límite de tamaño.)\n";
+                break;
+            }
+
+            $buffer .= $bloque;
+        }
+
+        return trim($buffer);
+    }
+}
