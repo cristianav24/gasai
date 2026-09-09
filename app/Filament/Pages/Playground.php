@@ -12,8 +12,11 @@ use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 
 /**
- * Playground: probar al agente dentro del panel, sin WhatsApp. Corre síncrono
- * (respuesta inmediata); la cola y el debounce son para WhatsApp (Fase 5).
+ * Playground: probar al agente dentro del panel, sin WhatsApp.
+ *
+ * El envío es en dos pasos para que se sienta en tiempo real: send() muestra el
+ * mensaje del cliente al instante y dispara runAgent(), que hace la llamada
+ * (lenta) al LLM y luego muestra la respuesta.
  */
 class Playground extends Page
 {
@@ -32,13 +35,15 @@ class Playground extends Page
 
     public string $input = '';
 
-    /** @var array<int, array{role: string, content: string}> */
+    /** @var array<int, array{role: string, content: string, time: string}> */
     public array $thread = [];
 
     /** @var array<int, array<string, mixed>> */
     public array $lastTrace = [];
 
     public bool $debug = false;
+
+    public bool $pending = false;
 
     public ?int $conversationId = null;
 
@@ -61,20 +66,43 @@ class Playground extends Page
         $this->thread = [];
         $this->lastTrace = [];
         $this->input = '';
+        $this->pending = false;
     }
 
-    public function send(AgentService $agent): void
+    /** Paso 1: registra el mensaje del cliente y lo muestra al instante. */
+    public function send(): void
     {
         $text = trim($this->input);
-        if ($text === '') {
+        if ($text === '' || $this->pending) {
             return;
         }
 
         $conversation = Conversation::findOrFail($this->conversationId);
         $conversation->update(['phone' => $this->simPhone]);
 
-        // Como en WhatsApp: el teléfono del remitente se conoce, así que si ya
-        // hay un cliente con ese número, entra identificado.
+        $conversation->messages()->create([
+            'tenant_id' => $conversation->tenant_id,
+            'role' => 'user',
+            'content' => $text,
+        ]);
+        $conversation->update(['last_activity_at' => now()]);
+
+        $this->input = '';
+        $this->pending = true;
+        $this->refreshThread();
+
+        // Dispara el turno del agente después de pintar el mensaje del cliente.
+        $this->dispatch('run-agent');
+    }
+
+    /** Paso 2: corre el agente sobre el mensaje ya guardado y muestra la respuesta. */
+    public function runAgent(AgentService $agent): void
+    {
+        if (! $this->pending) {
+            return;
+        }
+
+        $conversation = Conversation::findOrFail($this->conversationId);
         $customer = Customer::where('phone', $this->simPhone)->first();
 
         $context = new AgentContext(
@@ -83,10 +111,10 @@ class Playground extends Page
             customer: $customer,
         );
 
-        $agent->handle($context, $text);
+        $agent->respond($context);
 
         $this->lastTrace = $agent->getLastToolTrace();
-        $this->input = '';
+        $this->pending = false;
         $this->refreshThread();
     }
 
@@ -97,8 +125,12 @@ class Playground extends Page
         $this->thread = $conversation->messages()
             ->whereIn('role', ['user', 'assistant'])
             ->orderBy('id')
-            ->get(['role', 'content'])
-            ->map(fn ($m): array => ['role' => $m->role, 'content' => (string) $m->content])
+            ->get(['role', 'content', 'created_at'])
+            ->map(fn ($m): array => [
+                'role' => $m->role,
+                'content' => (string) $m->content,
+                'time' => $m->created_at?->format('H:i') ?? '',
+            ])
             ->all();
     }
 }
