@@ -50,6 +50,53 @@ class Conversaciones extends Page
             : null;
     }
 
+    /**
+     * Datos del cliente de la conversación seleccionada para el panel lateral.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function customerPanel(): ?array
+    {
+        $conversation = $this->selected();
+        if (! $conversation) {
+            return null;
+        }
+
+        $customer = $conversation->customer;
+
+        if (! $customer) {
+            // Contacto no registrado: solo tenemos el teléfono.
+            return [
+                'registered' => false,
+                'phone' => $conversation->phone,
+            ];
+        }
+
+        $addresses = $customer->addresses()
+            ->orderByDesc('is_primary')->orderByDesc('created_at')
+            ->get(['address', 'reference', 'is_primary']);
+
+        $envases = \App\Models\ContainerBalance::withoutGlobalScopes()
+            ->with('containerType')
+            ->where('customer_id', $customer->id)
+            ->where('balance', '!=', 0)
+            ->get();
+
+        $ultimoPedido = \App\Models\Order::where('customer_id', $customer->id)
+            ->latest('id')->first(['id', 'status', 'total', 'scheduled_date']);
+
+        return [
+            'registered' => true,
+            'name' => $customer->name,
+            'phone' => $customer->phone,
+            'notes' => $customer->notes,
+            'addresses' => $addresses,
+            'envases' => $envases,
+            'orders_count' => \App\Models\Order::where('customer_id', $customer->id)->count(),
+            'last_order' => $ultimoPedido,
+        ];
+    }
+
     /** @return Collection<int, Message> */
     public function thread(): Collection
     {

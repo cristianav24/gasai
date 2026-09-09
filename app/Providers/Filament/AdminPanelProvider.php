@@ -31,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->registration()
             ->tenant(Tenant::class, slugAttribute: 'slug', ownershipRelationship: 'tenant')
+            ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Amber,
             ])

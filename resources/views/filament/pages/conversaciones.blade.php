@@ -12,8 +12,14 @@
             --muted: #94a3b8; --border: #334155; --in-bg: #273449; --in-text: #f1f5f9;
             --shadow: 0 1px 3px rgba(0,0,0,.5);
         }
-        .gx { display: grid; grid-template-columns: 320px 1fr; gap: 1rem; }
+        .gx { display: grid; grid-template-columns: 300px 1fr 300px; gap: 1rem; }
+        @media (max-width: 1100px) { .gx { grid-template-columns: 300px 1fr; } .gx .details { display: none; } }
         @media (max-width: 800px) { .gx { grid-template-columns: 1fr; } }
+        .gx .details .row { padding: .55rem 0; border-bottom: 1px solid var(--border); }
+        .gx .details .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+        .gx .details .val { font-size: .9rem; margin-top: 2px; }
+        .gx .chipx { display: inline-block; font-size: .74rem; border-radius: 999px; padding: .1rem .55rem;
+            background: var(--elev); border: 1px solid var(--border); margin: 2px 4px 2px 0; }
         .gx .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; box-shadow: var(--shadow); overflow: hidden; }
         .gx .muted { color: var(--muted); }
 
@@ -130,6 +136,72 @@
                     </div>
                 @endif
             </div>
+        </div>
+
+        {{-- Datos del cliente --}}
+        <div class="panel details" style="padding: 1rem;">
+            @php($cp = $this->customerPanel())
+            @if (! $cp)
+                <div class="empty" style="padding:2rem 0;">
+                    <x-heroicon-o-identification />
+                    Selecciona una conversación para ver los datos del cliente.
+                </div>
+            @elseif (! $cp['registered'])
+                <div style="text-align:center; padding:1rem 0;">
+                    <span class="av" style="margin:0 auto .6rem;"><x-heroicon-s-user /></span>
+                    <div style="font-weight:600;">Contacto no registrado</div>
+                    <div class="muted" style="font-size:.85rem;">{{ $cp['phone'] }}</div>
+                </div>
+            @else
+                <div style="text-align:center; padding:.25rem 0 .75rem;">
+                    <span class="av" style="margin:0 auto .5rem; width:52px; height:52px; flex-basis:52px;">
+                        <x-heroicon-s-user />
+                    </span>
+                    <div style="font-weight:700; font-size:1rem;">{{ $cp['name'] ?? 'Sin nombre' }}</div>
+                    <div class="muted" style="font-size:.85rem;">{{ $cp['phone'] }}</div>
+                </div>
+
+                @if ($cp['notes'])
+                    <div class="row"><div class="lbl">Notas</div><div class="val">{{ $cp['notes'] }}</div></div>
+                @endif
+
+                <div class="row">
+                    <div class="lbl">Direcciones</div>
+                    @forelse ($cp['addresses'] as $a)
+                        <div class="val" style="margin-top:6px;">
+                            <x-heroicon-s-map-pin style="width:14px;height:14px;display:inline;vertical-align:-2px;color:#f59e0b;" />
+                            {{ $a->address }}
+                            @if ($a->is_primary)<span class="chipx">principal</span>@endif
+                            @if ($a->reference)<div class="muted" style="font-size:.78rem;">Ref: {{ $a->reference }}</div>@endif
+                        </div>
+                    @empty
+                        <div class="muted val">Sin direcciones guardadas.</div>
+                    @endforelse
+                </div>
+
+                @if ($cp['envases']->isNotEmpty())
+                    <div class="row">
+                        <div class="lbl">Envases en su poder</div>
+                        <div class="val" style="margin-top:4px;">
+                            @foreach ($cp['envases'] as $e)
+                                <span class="chipx">{{ $e->containerType?->name ?? 'Envase' }}: <strong>{{ $e->balance }}</strong></span>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <div class="row" style="border-bottom:0;">
+                    <div class="lbl">Pedidos</div>
+                    <div class="val">
+                        {{ $cp['orders_count'] }} en total
+                        @if ($cp['last_order'])
+                            <div class="muted" style="font-size:.8rem; margin-top:2px;">
+                                Último: #{{ $cp['last_order']->id }} · {{ \App\Models\Order::LABELS[$cp['last_order']->status] ?? $cp['last_order']->status }} · S/ {{ number_format((float) $cp['last_order']->total, 2) }}
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </x-filament-panels::page>
