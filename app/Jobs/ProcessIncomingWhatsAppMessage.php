@@ -73,12 +73,22 @@ class ProcessIncomingWhatsAppMessage implements ShouldQueue
             return;
         }
 
-        $customer = $conversation->customer_id
-            ? Customer::withoutGlobalScopes()->find($conversation->customer_id)
-            : Customer::withoutGlobalScopes()
+        $customer = null;
+        if ($conversation->customer_id) {
+            $customer = Customer::withoutGlobalScopes()->find($conversation->customer_id);
+        } elseif ($conversation->wa_user_id || $conversation->phone) {
+            $customer = Customer::withoutGlobalScopes()
                 ->where('tenant_id', $tenant->id)
-                ->where('phone', $conversation->phone)
+                ->where(function ($q) use ($conversation): void {
+                    if ($conversation->wa_user_id) {
+                        $q->orWhere('wa_user_id', $conversation->wa_user_id);
+                    }
+                    if ($conversation->phone) {
+                        $q->orWhere('phone', $conversation->phone);
+                    }
+                })
                 ->first();
+        }
 
         $context = new AgentContext($tenant, $conversation, $customer);
 

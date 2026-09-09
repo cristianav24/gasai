@@ -45,14 +45,14 @@ class WhatsAppInboundService
                     continue; // Nadie conectado con ese número; ignoramos.
                 }
 
-                $nombreContacto = $value['contacts'][0]['profile']['name'] ?? null;
+                $contact = $value['contacts'][0] ?? [];
 
                 foreach ($value['messages'] ?? [] as $message) {
                     if (($message['type'] ?? null) !== 'text') {
                         continue; // MVP: solo texto.
                     }
 
-                    if ($this->store($account, $message, $nombreContacto)) {
+                    if ($this->store($account, $message, $contact)) {
                         $nuevos++;
                     }
                 }
@@ -65,13 +65,17 @@ class WhatsAppInboundService
     /**
      * Guarda un mensaje entrante si no existía y encola el procesamiento.
      *
+     * Compatible con los usernames de WhatsApp (jun 2026): el remitente puede
+     * venir como número (E.164) o como BSUID (user_id), y el contacto puede
+     * traer un @username además del nombre de perfil.
+     *
      * @param  array<string, mixed>  $message
+     * @param  array<string, mixed>  $contact
      */
-    private function store(WhatsappAccount $account, array $message, ?string $nombreContacto): bool
+    private function store(WhatsappAccount $account, array $message, array $contact): bool
     {
         $tenantId = $account->tenant_id;
         $waMessageId = $message['id'] ?? null;
-        $fromPhone = '+' . ltrim((string) ($message['from'] ?? ''), '+');
         $text = $message['text']['body'] ?? '';
 
         // Idempotencia: si ya vimos este wa_message_id, no lo reprocesamos.
@@ -79,18 +83,48 @@ class WhatsAppInboundService
             return false;
         }
 
+        // --- Identidad del contacto ---
+        $from = trim((string) ($message['from'] ?? ''));
+        $userId = $message['user_id'] ?? ($contact['user_id'] ?? null);  // BSUID
+        $username = $contact['username'] ?? null;
+        $profileName = $contact['profile']['name'] ?? null;              // nombre/nickname mostrado
+
+        // Si "from" son solo dígitos, es un número; si no, es un BSUID.
+        $isPhone = $from !== '' && ctype_digit($from);
+        $phone = $isPhone ? '+' . $from : null;
+        // Identificador estable del contacto: BSUID si viene, si no el "from".
+        $waUserId = (string) ($userId ?: $from);
+        $displayName = $profileName ?: ($username ? '@' . ltrim($username, '@') : null);
+
+        // Cliente: por identificador estable, o por teléfono si lo tenemos.
         $customer = Customer::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->where('phone', $fromPhone)
+            ->where(function ($q) use ($waUserId, $phone): void {
+                $q->where('wa_user_id', $waUserId);
+                if ($phone) {
+                    $q->orWhere('phone', $phone);
+                }
+            })
             ->first();
 
-        // Conversación abierta por teléfono (una por contacto en el MVP).
+        // Guardamos la identidad de WhatsApp en el cliente si ya existe.
+        if ($customer) {
+            $customer->forceFill(array_filter([
+                'wa_user_id' => $customer->wa_user_id ?: $waUserId,
+                'username' => $username ?: $customer->username,
+                'phone' => $customer->phone ?: $phone,
+            ]))->save();
+        }
+
+        // Una conversación por contacto (clave estable = wa_user_id).
         $conversation = Conversation::withoutGlobalScopes()->firstOrCreate(
-            ['tenant_id' => $tenantId, 'phone' => $fromPhone, 'channel' => 'whatsapp'],
-            ['status' => 'bot', 'customer_id' => $customer?->id],
+            ['tenant_id' => $tenantId, 'wa_user_id' => $waUserId, 'channel' => 'whatsapp'],
+            ['status' => 'bot', 'customer_id' => $customer?->id, 'phone' => $phone],
         );
 
         $conversation->forceFill([
+            'phone' => $phone ?: $conversation->phone,
+            'contact_name' => $displayName ?: $conversation->contact_name,
             'last_inbound_at' => Carbon::now(),
             'last_activity_at' => Carbon::now(),
         ])->save();
@@ -106,7 +140,7 @@ class WhatsAppInboundService
         ]);
 
         // Debounce: agrupamos mensajes seguidos del mismo contacto.
-        ProcessIncomingWhatsAppMessage::dispatch($conversation->id, $nombreContacto)
+        ProcessIncomingWhatsAppMessage::dispatch($conversation->id, $displayName)
             ->delay(now()->addSeconds((int) config('services.whatsapp.debounce_seconds', 5)));
 
         return true;

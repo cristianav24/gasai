@@ -64,7 +64,7 @@
                     <button wire:click="select({{ $c->id }})" class="conv {{ $selectedId === $c->id ? 'active' : '' }}">
                         <span class="av"><x-heroicon-s-user /></span>
                         <span style="flex:1; min-width:0;">
-                            <span class="name">{{ $c->customer?->name ?? $c->phone ?? 'Anónimo' }}</span>
+                            <span class="name">{{ $c->contactLabel() }}</span>
                             <div class="sub muted">{{ $c->channel }} · {{ $c->last_activity_at?->diffForHumans() }}</div>
                         </span>
                         <span class="dot {{ $c->status === 'humano' ? 'human' : 'bot' }}" title="{{ $c->status === 'humano' ? 'Humano' : 'Bot' }}"></span>
@@ -93,7 +93,7 @@
                         <div style="display:flex; align-items:center; gap:.6rem;">
                             <span class="av"><x-heroicon-s-user /></span>
                             <div>
-                                <div style="font-weight:600;">{{ $selected->customer?->name ?? $selected->phone ?? 'Anónimo' }}</div>
+                                <div style="font-weight:600;">{{ $selected->contactLabel() }}</div>
                                 <div class="muted" style="font-size:.75rem;">
                                     <span class="pill {{ $selected->status === 'humano' ? 'human' : 'bot' }}">
                                         {{ $selected->status === 'humano' ? 'Atendido por humano' : 'Atendido por el bot' }}
@@ -149,8 +149,9 @@
             @elseif (! $cp['registered'])
                 <div style="text-align:center; padding:1rem 0;">
                     <span class="av" style="margin:0 auto .6rem;"><x-heroicon-s-user /></span>
-                    <div style="font-weight:600;">Contacto no registrado</div>
+                    <div style="font-weight:600;">{{ $cp['name'] ?? 'Contacto no registrado' }}</div>
                     <div class="muted" style="font-size:.85rem;">{{ $cp['phone'] }}</div>
+                    @if ($cp['name'])<div class="muted" style="font-size:.75rem;">(aún no registrado)</div>@endif
                 </div>
             @else
                 <div style="text-align:center; padding:.25rem 0 .75rem;">

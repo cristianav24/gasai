@@ -12,9 +12,19 @@ class Conversation extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'customer_id', 'phone', 'channel',
+        'tenant_id', 'customer_id', 'phone', 'wa_user_id', 'contact_name', 'channel',
         'status', 'assigned_user_id', 'last_activity_at', 'last_inbound_at',
     ];
+
+    /** Etiqueta del contacto: nombre del cliente, nombre de WhatsApp, o teléfono/ID. */
+    public function contactLabel(): string
+    {
+        return $this->customer?->displayName()
+            ?: $this->contact_name
+            ?: $this->phone
+            ?: $this->wa_user_id
+            ?: 'Anónimo';
+    }
 
     protected $casts = [
         'last_activity_at' => 'datetime',

@@ -65,10 +65,12 @@ class Conversaciones extends Page
         $customer = $conversation->customer;
 
         if (! $customer) {
-            // Contacto no registrado: solo tenemos el teléfono.
+            // Contacto no registrado: mostramos el nombre de WhatsApp si vino,
+            // y el teléfono o el ID según lo que traiga WhatsApp.
             return [
                 'registered' => false,
-                'phone' => $conversation->phone,
+                'name' => $conversation->contact_name,
+                'phone' => $conversation->phone ?: $conversation->wa_user_id,
             ];
         }
 

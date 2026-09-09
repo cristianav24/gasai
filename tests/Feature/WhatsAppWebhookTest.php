@@ -114,6 +114,45 @@ class WhatsAppWebhookTest extends TestCase
         Queue::assertPushed(ProcessIncomingWhatsAppMessage::class, 1);
     }
 
+    public function test_maneja_username_y_bsuid_sin_numero(): void
+    {
+        Queue::fake();
+        $tenant = $this->tenantConNumero('PHONE_1');
+
+        // Payload estilo jun-2026: "from" es un BSUID y el contacto trae username.
+        $payload = [
+            'object' => 'whatsapp_business_account',
+            'entry' => [[
+                'changes' => [[
+                    'field' => 'messages',
+                    'value' => [
+                        'metadata' => ['phone_number_id' => 'PHONE_1'],
+                        'contacts' => [[
+                            'profile' => ['name' => 'Cristian V.'],
+                            'username' => 'cristian.wanka',
+                            'user_id' => 'PE.9Z8Y7X6W5V',
+                        ]],
+                        'messages' => [[
+                            'from' => 'PE.9Z8Y7X6W5V',
+                            'user_id' => 'PE.9Z8Y7X6W5V',
+                            'id' => 'wamid.bsuid1',
+                            'type' => 'text',
+                            'text' => ['body' => 'Hola sin número'],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ];
+
+        $this->postJson('/webhooks/whatsapp', $payload)->assertOk();
+
+        $conv = Conversation::withoutGlobalScopes()->firstWhere('wa_user_id', 'PE.9Z8Y7X6W5V');
+        $this->assertNotNull($conv);
+        $this->assertSame($tenant->id, $conv->tenant_id);
+        $this->assertSame('Cristian V.', $conv->contact_name); // se muestra el nickname
+        $this->assertNull($conv->phone);                       // no vino número
+    }
+
     public function test_un_numero_no_conectado_se_ignora(): void
     {
         Queue::fake();
