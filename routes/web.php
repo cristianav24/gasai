@@ -4,7 +4,7 @@ use App\Http\Controllers\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/admin');
 });
 
 // Webhook único de WhatsApp (resuelve el tenant por phone_number_id).
