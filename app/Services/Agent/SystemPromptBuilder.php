@@ -6,6 +6,7 @@ use App\Models\BotConfig;
 use App\Models\DeliveryZone;
 use App\Models\KnowledgeItem;
 use App\Models\Product;
+use Illuminate\Support\Carbon;
 
 /**
  * Arma el system prompt del agente: plantilla base + config del bot +
@@ -37,6 +38,25 @@ class SystemPromptBuilder
         - Si no puedes resolver algo o el cliente lo pide, usa escalar_a_humano.
         - Responde en español, breve y claro, como en un chat de WhatsApp.
         TXT;
+
+        // --- Contexto temporal (para resolver "hoy", "mañana", "ahora") ---
+        $tz = $tenant->timezone ?: 'America/Lima';
+        $ahora = Carbon::now($tz)->locale('es');
+        $hoy = $ahora->format('Y-m-d');
+        $manana = $ahora->copy()->addDay()->format('Y-m-d');
+        $partes[] = <<<TXT
+        Contexto de tiempo (zona horaria {$tz}):
+        - Hoy es {$ahora->isoFormat('dddd D [de] MMMM [de] YYYY')} ({$hoy}). Hora actual: {$ahora->format('H:i')}.
+        - Resuelve tú mismo las fechas relativas: "hoy" = {$hoy}; "mañana" = {$manana}. Nunca le pidas al cliente que te confirme la fecha de hoy: ya la sabes.
+        - Si el cliente dice "ahora", "ya" o "lo antes posible", usa la fecha de hoy ({$hoy}) y la franja "hora_exacta" con la hora actual ({$ahora->format('H:i')}). No le vuelvas a preguntar la fecha.
+        - Al llamar a crear_pedido, envía la fecha en formato YYYY-MM-DD.
+        TXT;
+
+        // --- Horario de atención del negocio ---
+        $horario = $this->horarioAtencion($tenant);
+        if ($horario !== '') {
+            $partes[] = "Horario de atención: {$horario}. Si el cliente pide una entrega fuera del horario, avísale con amabilidad.";
+        }
 
         // --- Instrucciones extra del dueño ---
         if ($config && filled($config->extra_instructions)) {
@@ -81,6 +101,18 @@ class SystemPromptBuilder
         }
 
         return implode("\n\n", $partes);
+    }
+
+    /** Texto del horario de atención del tenant (guardado como array u string). */
+    private function horarioAtencion(\App\Models\Tenant $tenant): string
+    {
+        $bh = $tenant->business_hours;
+
+        if (is_array($bh)) {
+            return trim((string) ($bh['texto'] ?? ''));
+        }
+
+        return trim((string) $bh);
     }
 
     /**
