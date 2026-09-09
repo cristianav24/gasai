@@ -24,3 +24,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Skills/local de Claude Code
+.claude/
