@@ -47,7 +47,9 @@ return [
     // WhatsApp Cloud API (Meta).
     'whatsapp' => [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),   // Para la verificación del webhook.
-        'app_secret' => env('WHATSAPP_APP_SECRET'),       // Opcional: firma X-Hub-Signature-256.
+        'app_secret' => env('WHATSAPP_APP_SECRET'),       // Firma X-Hub-Signature-256 y token exchange.
+        'app_id' => env('WHATSAPP_APP_ID'),               // App de Meta (para Embedded Signup).
+        'config_id' => env('WHATSAPP_CONFIG_ID'),         // Configuración del Embedded Signup.
         'graph_url' => env('WHATSAPP_GRAPH_URL', 'https://graph.facebook.com'),
         'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v21.0'),
         'debounce_seconds' => (int) env('WHATSAPP_DEBOUNCE_SECONDS', 5),

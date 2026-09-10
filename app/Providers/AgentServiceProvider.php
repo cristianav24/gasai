@@ -46,6 +46,19 @@ class AgentServiceProvider extends ServiceProvider
             );
         });
 
+        // Embedded Signup: intercambio de código y suscripción del WABA.
+        $this->app->bind(\App\Services\WhatsApp\EmbeddedSignupService::class, function ($app) {
+            $cfg = config('services.whatsapp');
+
+            return new \App\Services\WhatsApp\EmbeddedSignupService(
+                http: $app->make(HttpFactory::class),
+                graphUrl: (string) $cfg['graph_url'],
+                graphVersion: (string) $cfg['graph_version'],
+                appId: $cfg['app_id'] ?? null,
+                appSecret: $cfg['app_secret'] ?? null,
+            );
+        });
+
         // Registro de herramientas del agente.
         $this->app->singleton(ToolRegistry::class, function ($app): ToolRegistry {
             return new ToolRegistry([
