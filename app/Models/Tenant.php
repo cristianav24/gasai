@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Tenant extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'rubro', 'currency', 'timezone',
+        'name', 'slug', 'rubro', 'tracks_containers', 'currency', 'timezone',
         'business_hours', 'onboarding_step', 'onboarding_completed_at',
         'onboarding_checklist_dismissed',
     ];
@@ -18,6 +18,7 @@ class Tenant extends Model
         'business_hours' => 'array',
         'onboarding_completed_at' => 'datetime',
         'onboarding_checklist_dismissed' => 'boolean',
+        'tracks_containers' => 'boolean',
     ];
 
     public function onboardingCompleted(): bool

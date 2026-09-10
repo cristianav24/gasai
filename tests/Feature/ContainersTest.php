@@ -33,7 +33,7 @@ class ContainersTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenant = Tenant::create(['name' => 'H2O', 'slug' => 'h2o', 'rubro' => 'agua']);
+        $this->tenant = Tenant::create(['name' => 'H2O', 'slug' => 'h2o', 'rubro' => 'agua', 'tracks_containers' => true]);
         $this->branch = $this->tenant->branches()->create(['name' => 'Central', 'active' => true]);
 
         $owner = User::factory()->create();

@@ -33,6 +33,12 @@ class Envases extends Page
 
     protected static ?int $navigationSort = 8;
 
+    /** Solo se muestra si el negocio maneja envases retornables (garantía/préstamo). */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return (bool) (Filament::getTenant()?->tracks_containers);
+    }
+
     /** Clientes con saldo de envases distinto de cero. */
     public function balances(): Collection
     {

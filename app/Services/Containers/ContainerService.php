@@ -52,8 +52,13 @@ class ContainerService
      */
     public function applyOrderDelivery(Order $order): void
     {
-        if ($order->containers_applied_at !== null || ! $order->customer_id) {
-            // Sin cliente identificado no hay a quién cargarle el envase.
+        if ($order->containers_applied_at !== null) {
+            return;
+        }
+
+        // Negocios que venden el envase (no lo prestan) no manejan saldo de envases;
+        // sin cliente identificado tampoco hay a quién cargárselo.
+        if (! $order->tenant?->tracks_containers || ! $order->customer_id) {
             $order->forceFill(['containers_applied_at' => now()])->save();
 
             return;
