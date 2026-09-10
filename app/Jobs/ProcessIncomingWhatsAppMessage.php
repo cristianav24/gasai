@@ -58,6 +58,10 @@ class ProcessIncomingWhatsAppMessage implements ShouldQueue
             return;
         }
 
+        // Enriquecemos las ubicaciones con su dirección real (reverse geocoding)
+        // antes de que el agente lea el historial.
+        $this->geocodePendingLocations($pendientes);
+
         // Los marcamos procesados antes de responder (evita doble procesamiento).
         Message::withoutGlobalScopes()
             ->whereIn('id', $pendientes->pluck('id'))
@@ -98,6 +102,36 @@ class ProcessIncomingWhatsAppMessage implements ShouldQueue
 
         // Tiempo real: la respuesta del bot ya está guardada; refresca la bandeja.
         \App\Events\ConversationUpdated::dispatch($conversation->tenant_id, $conversation->id);
+    }
+
+    /**
+     * Para cada mensaje de ubicación pendiente, resuelve su dirección real con
+     * reverse geocoding y la agrega al contenido (para el agente y el operador).
+     *
+     * @param  \Illuminate\Support\Collection<int, Message>  $pendientes
+     */
+    private function geocodePendingLocations(\Illuminate\Support\Collection $pendientes): void
+    {
+        $geocoder = app(\App\Services\Geo\Geocoder::class);
+
+        foreach ($pendientes as $msg) {
+            $payload = $msg->raw_payload ?? [];
+            if (($payload['type'] ?? null) !== 'location') {
+                continue;
+            }
+
+            $lat = $payload['location']['latitude'] ?? null;
+            $lng = $payload['location']['longitude'] ?? null;
+            if ($lat === null || $lng === null) {
+                continue;
+            }
+
+            $direccion = $geocoder->reverse((float) $lat, (float) $lng);
+            if ($direccion) {
+                $msg->content .= "\nDirección aproximada (por GPS): {$direccion}";
+                $msg->save();
+            }
+        }
     }
 
     private function sendReply(Conversation $conversation, string $reply, WhatsAppGateway $gateway): void
