@@ -95,6 +95,9 @@ class ProcessIncomingWhatsAppMessage implements ShouldQueue
         $reply = $agent->respond($context);
 
         $this->sendReply($conversation, $reply, $gateway);
+
+        // Tiempo real: la respuesta del bot ya está guardada; refresca la bandeja.
+        \App\Events\ConversationUpdated::dispatch($conversation->tenant_id, $conversation->id);
     }
 
     private function sendReply(Conversation $conversation, string $reply, WhatsAppGateway $gateway): void

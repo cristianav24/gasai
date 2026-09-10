@@ -31,6 +31,10 @@ class AdminPanelProvider extends PanelProvider
             ->registration()
             ->tenant(Tenant::class, slugAttribute: 'slug', ownershipRelationship: 'tenant')
             ->sidebarCollapsibleOnDesktop()
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::HEAD_END,
+                fn (): string => \Illuminate\Support\Facades\Blade::render("@vite('resources/js/echo.js')"),
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])

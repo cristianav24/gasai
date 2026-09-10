@@ -139,6 +139,9 @@ class WhatsAppInboundService
             'processed_at' => null,
         ]);
 
+        // Tiempo real: avisa a la bandeja del panel que llegó un mensaje.
+        \App\Events\ConversationUpdated::dispatch($tenantId, $conversation->id);
+
         // Debounce: agrupamos mensajes seguidos del mismo contacto.
         ProcessIncomingWhatsAppMessage::dispatch($conversation->id, $displayName)
             ->delay(now()->addSeconds((int) config('services.whatsapp.debounce_seconds', 5)));

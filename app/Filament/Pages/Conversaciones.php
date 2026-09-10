@@ -7,6 +7,7 @@ use App\Models\Message;
 use App\Models\WhatsappAccount;
 use App\Services\WhatsApp\WhatsAppGateway;
 use BackedEnum;
+use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -31,6 +32,30 @@ class Conversaciones extends Page
     public ?int $selectedId = null;
 
     public string $draft = '';
+
+    /**
+     * Escucha en tiempo real (WebSocket / Reverb) los cambios de conversaciones
+     * del tenant. Al llegar un evento, Livewire re-renderiza y la bandeja se
+     * actualiza sola, sin recargar la página.
+     *
+     * @return array<string, string>
+     */
+    public function getListeners(): array
+    {
+        $listeners = parent::getListeners();
+
+        if ($tenantId = Filament::getTenant()?->getKey()) {
+            $listeners["echo-private:tenant.{$tenantId},.conversation.updated"] = 'onRealtimeUpdate';
+        }
+
+        return $listeners;
+    }
+
+    public function onRealtimeUpdate(): void
+    {
+        // El solo hecho de que Livewire llame este método re-renderiza la vista,
+        // recalculando la lista de conversaciones y el hilo abierto.
+    }
 
     /** Lista de conversaciones del tenant, más recientes primero. */
     public function conversations(): Collection
