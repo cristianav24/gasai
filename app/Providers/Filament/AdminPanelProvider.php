@@ -30,6 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->registration()
             ->tenant(Tenant::class, slugAttribute: 'slug', ownershipRelationship: 'tenant')
+            ->tenantRegistration(\App\Filament\Pages\Tenancy\RegisterTenant::class)
             ->sidebarCollapsibleOnDesktop()
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
