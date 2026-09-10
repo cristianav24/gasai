@@ -60,10 +60,13 @@
         </tbody>
     </table>
 
+    @php($disc = (float) $sale->discount_total)
     <div class="sv-tot">
         <div class="row"><span>Subtotal (lista)</span><span>S/ {{ number_format((float) $sale->subtotal, 2) }}</span></div>
-        @if ((float) $sale->discount_total != 0.0)
-            <div class="row"><span>Descuento</span><span>− S/ {{ number_format((float) $sale->discount_total, 2) }}</span></div>
+        @if ($disc > 0)
+            <div class="row"><span>Descuento</span><span>− S/ {{ number_format($disc, 2) }}</span></div>
+        @elseif ($disc < 0)
+            <div class="row"><span>Recargo</span><span>+ S/ {{ number_format(abs($disc), 2) }}</span></div>
         @endif
         <div class="row g"><span>Total cobrado</span><span>S/ {{ number_format((float) $sale->total, 2) }}</span></div>
     </div>
