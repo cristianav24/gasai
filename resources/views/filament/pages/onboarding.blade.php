@@ -63,7 +63,9 @@
         </div>
 
         <div class="onb-card">
-            {{ $this->form }}
+            <form wire:submit="complete">
+                {{ $this->form }}
+            </form>
         </div>
     </div>
 </x-filament-panels::page>
