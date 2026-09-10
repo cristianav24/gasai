@@ -32,6 +32,17 @@ class Onboarding extends Page
 
     protected static ?string $title = 'Configura tu negocio';
 
+    /** El hero de la vista ya da el título; evitamos el encabezado duplicado. */
+    public function getHeading(): string
+    {
+        return '';
+    }
+
+    public function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
+    {
+        return \Filament\Support\Enums\Width::FiveExtraLarge;
+    }
+
     /** Ejemplos de productos precargados según el rubro. */
     private const EJEMPLOS_PRODUCTOS = [
         'agua' => [
@@ -99,9 +110,11 @@ class Onboarding extends Page
     private function submitButton(): \Illuminate\Support\HtmlString
     {
         return new \Illuminate\Support\HtmlString(
-            '<button type="submit" class="fi-btn fi-btn-size-md" '
-            . 'style="background:#f59e0b;color:#111;padding:0.5rem 1rem;border-radius:0.5rem;font-weight:600;">'
-            . 'Finalizar y ir al panel</button>'
+            '<button type="submit" '
+            . 'style="display:inline-flex;align-items:center;gap:.45rem;background:linear-gradient(135deg,#f59e0b,#f97316);'
+            . 'color:#1c1917;padding:.6rem 1.2rem;border:0;border-radius:.7rem;font-weight:700;cursor:pointer;'
+            . 'box-shadow:0 4px 12px rgba(245,158,11,.35);">'
+            . '✓ Finalizar y ir al panel</button>'
         );
     }
 
