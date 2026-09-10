@@ -34,6 +34,18 @@ class PuntoDeVenta extends Page
 
     protected static ?int $navigationSort = 5;
 
+    /** POS a ancho completo (ocupa toda la pantalla, como una caja real). */
+    public function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
+    {
+        return \Filament\Support\Enums\Width::Full;
+    }
+
+    /** Sin título grande arriba: más espacio para el POS. */
+    public function getHeading(): string
+    {
+        return '';
+    }
+
     public ?int $branchId = null;
 
     public ?int $customerId = null;

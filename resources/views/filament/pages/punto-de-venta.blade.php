@@ -4,15 +4,18 @@
                --accent:#0ea5e9; --shadow:0 1px 3px rgba(15,23,42,.08); }
         .dark .pos { --bg:#0b1220; --card:#1e293b; --text:#f1f5f9; --muted:#94a3b8; --border:#334155;
                      --accent:#38bdf8; --shadow:0 1px 3px rgba(0,0,0,.5); }
-        .pos { display:grid; grid-template-columns: 1fr 440px; gap:1rem; color:var(--text); }
-        @media (max-width:1024px){ .pos{ grid-template-columns:1fr; } }
-        .pos .panel{ background:var(--card); border:1px solid var(--border); border-radius:1rem; box-shadow:var(--shadow); }
+        .pos { display:grid; grid-template-columns: minmax(0,1.35fr) minmax(380px,1fr); gap:1rem; color:var(--text);
+               min-height: calc(100vh - 140px); align-items:stretch; }
+        @media (max-width:1024px){ .pos{ grid-template-columns:1fr; min-height:auto; } }
+        .pos .panel{ background:var(--card); border:1px solid var(--border); border-radius:1rem; box-shadow:var(--shadow);
+                     display:flex; flex-direction:column; overflow:hidden; }
         .pos .muted{ color:var(--muted); }
         .pos select, .pos input[type=text], .pos input[type=number]{
             background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:.6rem; padding:.5rem .7rem; }
 
         /* ---- Ticket (izquierda) ---- */
-        .pos .ticket{ display:flex; flex-direction:column; min-height:70vh; }
+        .pos .ticket{ flex:1; }
+        .pos .ticket-body{ flex:1; overflow-y:auto; }
         .pos .ticket-top{ display:flex; gap:.6rem; padding:.85rem; border-bottom:1px solid var(--border); }
         .pos .ticket-top select{ flex:1; }
         .pos .iconbtn{ width:42px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border);
@@ -39,12 +42,13 @@
         .pos .btn-pay{ background:#34d399; color:#064e3b; } .dark .pos .btn-pay{ background:#065f46; color:#d1fae5; }
 
         /* ---- Grilla de productos (derecha) ---- */
-        .pos .grid-wrap{ padding:.85rem; display:flex; flex-direction:column; gap:.75rem; max-height:78vh; }
+        .pos .grid-wrap{ padding:.85rem; display:flex; flex-direction:column; gap:.75rem; flex:1; min-height:0; }
         .pos .cats{ display:flex; flex-wrap:wrap; gap:.4rem; }
         .pos .cat{ padding:.5rem .9rem; border-radius:.6rem; border:1px solid var(--border); background:var(--bg);
                    color:var(--text); font-size:.85rem; cursor:pointer; }
         .pos .cat.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
-        .pos .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; overflow-y:auto; padding-right:2px; }
+        .pos .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.7rem; overflow-y:auto; padding-right:2px;
+                     flex:1; min-height:0; align-content:start; }
         .pos .pcard{ position:relative; text-align:left; background:var(--card); border:1px solid var(--border); border-radius:.8rem;
                      padding:.8rem; cursor:pointer; transition:transform .08s, box-shadow .15s; }
         .pos .pcard:hover{ box-shadow:0 4px 12px rgba(14,165,233,.18); transform:translateY(-1px); }
@@ -95,7 +99,7 @@
                     </div>
                 </div>
             @else
-                <div style="overflow-y:auto;">
+                <div class="ticket-body">
                     <table>
                         <thead>
                             <tr>
