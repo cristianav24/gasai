@@ -48,6 +48,12 @@ class Conversation extends Model
         return $this->hasMany(Message::class);
     }
 
+    /** Último mensaje del hilo (para la vista previa en la bandeja). */
+    public function lastMessage(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Message::class)->latestOfMany();
+    }
+
     public function assignedUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_user_id');

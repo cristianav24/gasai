@@ -29,9 +29,27 @@ class Conversaciones extends Page
 
     protected static ?int $navigationSort = 9;
 
+    public function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
+    {
+        return \Filament\Support\Enums\Width::Full;
+    }
+
+    public function getHeading(): string
+    {
+        return '';
+    }
+
     public ?int $selectedId = null;
 
     public string $draft = '';
+
+    /** Pestaña activa: all | bot | humano. */
+    public string $filter = 'all';
+
+    public function setFilter(string $filter): void
+    {
+        $this->filter = $filter;
+    }
 
     /**
      * Escucha en tiempo real (WebSocket / Reverb) los cambios de conversaciones
@@ -57,15 +75,32 @@ class Conversaciones extends Page
         // recalculando la lista de conversaciones y el hilo abierto.
     }
 
-    /** Lista de conversaciones del tenant, más recientes primero. */
+    /** Lista de conversaciones del tenant, filtrada por pestaña. */
     public function conversations(): Collection
     {
         return Conversation::query()
-            ->with('customer')
+            ->with(['customer', 'lastMessage'])
+            ->when($this->filter === 'bot', fn ($q) => $q->where('status', 'bot'))
+            ->when($this->filter === 'humano', fn ($q) => $q->where('status', 'humano'))
             ->orderByDesc('last_activity_at')
             ->orderByDesc('id')
-            ->limit(50)
+            ->limit(80)
             ->get();
+    }
+
+    /** Contadores para las pestañas. */
+    public function counts(): array
+    {
+        $rows = Conversation::query()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'all' => (int) $rows->sum(),
+            'bot' => (int) ($rows['bot'] ?? 0),
+            'humano' => (int) ($rows['humano'] ?? 0),
+        ];
     }
 
     public function selected(): ?Conversation

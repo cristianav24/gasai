@@ -12,35 +12,50 @@
             --muted: #94a3b8; --border: #334155; --in-bg: #273449; --in-text: #f1f5f9;
             --shadow: 0 1px 3px rgba(0,0,0,.5);
         }
-        .gx { display: grid; grid-template-columns: 300px 1fr 300px; gap: 1rem; }
-        @media (max-width: 1100px) { .gx { grid-template-columns: 300px 1fr; } .gx .details { display: none; } }
-        @media (max-width: 800px) { .gx { grid-template-columns: 1fr; } }
+        .gx { display: grid; grid-template-columns: 340px 1fr 320px; gap: 1rem;
+              min-height: calc(100vh - 130px); align-items: stretch; }
+        @media (max-width: 1100px) { .gx { grid-template-columns: 320px 1fr; } .gx .details { display: none; } }
+        @media (max-width: 800px) { .gx { grid-template-columns: 1fr; min-height:auto; } }
         .gx .details .row { padding: .55rem 0; border-bottom: 1px solid var(--border); }
         .gx .details .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
         .gx .details .val { font-size: .9rem; margin-top: 2px; }
         .gx .chipx { display: inline-block; font-size: .74rem; border-radius: 999px; padding: .1rem .55rem;
             background: var(--elev); border: 1px solid var(--border); margin: 2px 4px 2px 0; }
-        .gx .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; box-shadow: var(--shadow); overflow: hidden; }
+        .gx .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; box-shadow: var(--shadow);
+            overflow: hidden; display: flex; flex-direction: column; }
         .gx .muted { color: var(--muted); }
 
         /* Lista */
-        .gx .list { display: flex; flex-direction: column; max-height: 62vh; overflow-y: auto; }
+        /* Cabecera + pestañas */
+        .gx .list-head { padding: .9rem .85rem .6rem; border-bottom: 1px solid var(--border); }
+        .gx .lh-title { display:flex; align-items:center; gap:.4rem; font-size:1.05rem; font-weight:800; }
+        .gx .tabs { display:flex; gap:.4rem; margin-top:.7rem; background:var(--bg2); padding:.25rem; border-radius:.7rem; }
+        .gx .tab { flex:1; display:flex; align-items:center; justify-content:center; gap:.35rem; padding:.4rem .3rem;
+            border:0; background:transparent; color:var(--muted); font-size:.82rem; font-weight:600; border-radius:.55rem; cursor:pointer; }
+        .gx .tab.active { background:var(--surface); color:var(--text); box-shadow:var(--shadow); }
+        .gx .cbadge { font-size:.7rem; background:var(--elev); color:var(--muted); border-radius:999px; padding:0 .4rem; min-width:18px; text-align:center; }
+        .gx .tab.active .cbadge { background:#f59e0b; color:#1c1917; }
+
+        .gx .list { display: flex; flex-direction: column; overflow-y: auto; flex:1; }
         .gx .conv { display: flex; gap: .7rem; align-items: center; width: 100%; text-align: left;
-            padding: .7rem .85rem; border: 0; border-bottom: 1px solid var(--border); background: transparent;
+            padding: .65rem .85rem; border: 0; border-bottom: 1px solid var(--border); background: transparent;
             color: var(--text); cursor: pointer; transition: background .15s ease; }
         .gx .conv:hover { background: var(--elev); }
         .gx .conv.active { background: var(--elev); box-shadow: inset 3px 0 0 #f59e0b; }
-        .gx .av { width: 40px; height: 40px; border-radius: 50%; flex: 0 0 40px; display: flex;
-            align-items: center; justify-content: center; background: #fde68a; color: #92400e; }
+        .gx .av { width: 42px; height: 42px; border-radius: 50%; flex: 0 0 42px; display: flex;
+            align-items: center; justify-content: center; background: #fde68a; color: #92400e; font-weight:700; font-size:.85rem; }
         .dark .gx .av { background: #78500a; color: #fde68a; }
         .gx .av svg { width: 20px; height: 20px; }
-        .gx .conv .name { font-weight: 600; font-size: .9rem; line-height: 1.1; }
-        .gx .conv .sub { font-size: .74rem; }
-        .gx .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+        .gx .conv-top { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; }
+        .gx .conv .name { font-weight: 600; font-size: .9rem; line-height: 1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .gx .time { font-size:.7rem; color:var(--muted); flex:0 0 auto; }
+        .gx .conv-bottom { display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-top:2px; }
+        .gx .conv .sub { font-size: .78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .gx .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
         .gx .dot.bot { background: #22c55e; } .gx .dot.human { background: #f59e0b; }
 
         /* Thread */
-        .gx .thread-wrap { display: flex; flex-direction: column; height: 66vh; }
+        .gx .thread-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
         .gx .thead { display: flex; align-items: center; justify-content: space-between; gap: .75rem;
             padding: .8rem 1rem; border-bottom: 1px solid var(--border); }
         .gx .pill { font-size: .72rem; font-weight: 600; border-radius: 999px; padding: .12rem .55rem; }
@@ -49,8 +64,14 @@
             display: flex; flex-direction: column; gap: .7rem; scroll-behavior: smooth; }
         .gx .bubble { max-width: 74%; padding: .55rem .85rem; border-radius: 1.1rem; font-size: .9rem;
             line-height: 1.4; white-space: pre-wrap; word-break: break-word; box-shadow: var(--shadow); }
-        .gx .bubble.in { background: var(--in-bg); color: var(--in-text); align-self: flex-start; border-bottom-left-radius: .3rem; }
-        .gx .bubble.out { background: #f59e0b; color: #1c1917; align-self: flex-end; border-bottom-right-radius: .3rem; }
+        .gx .bubble.in { background: var(--in-bg); color: var(--in-text); border-bottom-left-radius: .3rem; }
+        .gx .bubble.out { background: #f59e0b; color: #1c1917; border-bottom-right-radius: .3rem; }
+        .gx .msg { display:flex; flex-direction:column; max-width:76%; }
+        .gx .msg.in { align-self:flex-start; align-items:flex-start; }
+        .gx .msg.out { align-self:flex-end; align-items:flex-end; }
+        .gx .btime { font-size:.65rem; color:var(--muted); margin:2px .4rem 0; }
+        .gx .daysep { text-align:center; margin:.4rem 0; }
+        .gx .daysep span { font-size:.72rem; color:var(--muted); background:var(--elev); padding:.15rem .7rem; border-radius:999px; }
         .gx .empty { margin: auto; text-align: center; color: var(--muted); }
         .gx .empty svg { width: 42px; height: 42px; margin: 0 auto .6rem; opacity: .5; }
         .gx .foot { padding: .8rem 1rem; border-top: 1px solid var(--border); }
@@ -59,20 +80,41 @@
     <div class="gx">
         {{-- Lista --}}
         <div class="panel">
+            @php($cnt = $this->counts())
+            <div class="list-head">
+                <div class="lh-title"><x-heroicon-s-chat-bubble-left-right style="width:20px;height:20px;color:#f59e0b;" /> Conversaciones</div>
+                <div class="tabs">
+                    <button class="tab {{ $filter === 'all' ? 'active' : '' }}" wire:click="setFilter('all')">
+                        Todos <span class="cbadge">{{ $cnt['all'] }}</span>
+                    </button>
+                    <button class="tab {{ $filter === 'bot' ? 'active' : '' }}" wire:click="setFilter('bot')">
+                        🤖 IA <span class="cbadge">{{ $cnt['bot'] }}</span>
+                    </button>
+                    <button class="tab {{ $filter === 'humano' ? 'active' : '' }}" wire:click="setFilter('humano')">
+                        🧑 Míos <span class="cbadge">{{ $cnt['humano'] }}</span>
+                    </button>
+                </div>
+            </div>
             <div class="list">
                 @forelse ($this->conversations() as $c)
+                    @php($preview = \Illuminate\Support\Str::limit($c->lastMessage?->content, 38))
                     <button wire:click="select({{ $c->id }})" class="conv {{ $selectedId === $c->id ? 'active' : '' }}">
-                        <span class="av"><x-heroicon-s-user /></span>
+                        <span class="av">{{ \Illuminate\Support\Str::of($c->contactLabel())->substr(0,2)->upper() }}</span>
                         <span style="flex:1; min-width:0;">
-                            <span class="name">{{ $c->contactLabel() }}</span>
-                            <div class="sub muted">{{ $c->channel }} · {{ $c->last_activity_at?->diffForHumans() }}</div>
+                            <div class="conv-top">
+                                <span class="name">{{ $c->contactLabel() }}</span>
+                                <span class="time">{{ $c->last_activity_at?->diffForHumans(short: true) }}</span>
+                            </div>
+                            <div class="conv-bottom">
+                                <span class="sub muted">{{ $preview ?: $c->channel }}</span>
+                                <span class="dot {{ $c->status === 'humano' ? 'human' : 'bot' }}" title="{{ $c->status === 'humano' ? 'Humano' : 'Bot' }}"></span>
+                            </div>
                         </span>
-                        <span class="dot {{ $c->status === 'humano' ? 'human' : 'bot' }}" title="{{ $c->status === 'humano' ? 'Humano' : 'Bot' }}"></span>
                     </button>
                 @empty
                     <div class="empty" style="padding:2.5rem 1rem;">
                         <x-heroicon-o-inbox />
-                        No hay conversaciones todavía.
+                        No hay conversaciones en esta pestaña.
                     </div>
                 @endforelse
             </div>
@@ -113,8 +155,17 @@
                     <div class="body" x-data="{}"
                          x-init="() => { const el=$el; const b=()=>el.scrollTop=el.scrollHeight; b();
                                          new MutationObserver(b).observe(el,{childList:true,subtree:true}); }">
+                        @php($lastDay = null)
                         @forelse ($this->thread() as $m)
-                            <div class="bubble {{ $m->role === 'user' ? 'in' : 'out' }}">{{ $m->content }}</div>
+                            @php($day = $m->created_at?->format('Y-m-d'))
+                            @if ($day !== $lastDay)
+                                <div class="daysep"><span>{{ $m->created_at?->isoFormat('D [de] MMMM') }}</span></div>
+                                @php($lastDay = $day)
+                            @endif
+                            <div class="msg {{ $m->role === 'user' ? 'in' : 'out' }}">
+                                <div class="bubble {{ $m->role === 'user' ? 'in' : 'out' }}">{{ $m->content }}</div>
+                                <span class="btime">{{ $m->created_at?->format('H:i') }}</span>
+                            </div>
                         @empty
                             <div class="empty" style="margin:auto;"><x-heroicon-o-chat-bubble-oval-left />Sin mensajes aún.</div>
                         @endforelse
