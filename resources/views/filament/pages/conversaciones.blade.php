@@ -13,9 +13,13 @@
             --shadow: 0 1px 3px rgba(0,0,0,.5);
         }
         .gx { display: grid; grid-template-columns: 340px 1fr 320px; gap: 1rem;
-              min-height: calc(100vh - 130px); align-items: stretch; }
-        @media (max-width: 1100px) { .gx { grid-template-columns: 320px 1fr; } .gx .details { display: none; } }
-        @media (max-width: 800px) { .gx { grid-template-columns: 1fr; min-height:auto; } }
+              min-height: calc(100vh - 130px); align-items: stretch; transition: grid-template-columns .18s ease; }
+        .gx.collapsed { grid-template-columns: 1fr 320px; }
+        @media (max-width: 1100px) { .gx, .gx.collapsed { grid-template-columns: 320px 1fr; } .gx .details { display: none; } }
+        @media (max-width: 800px) { .gx, .gx.collapsed { grid-template-columns: 1fr; min-height:auto; } }
+        .gx .collapse-btn, .gx .expand-btn { display:flex; align-items:center; justify-content:center; width:30px; height:30px;
+            border-radius:.5rem; border:1px solid var(--border); background:var(--elev); color:var(--muted); cursor:pointer; }
+        .gx .collapse-btn:hover, .gx .expand-btn:hover { color:var(--text); }
         .gx .details .row { padding: .55rem 0; border-bottom: 1px solid var(--border); }
         .gx .details .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
         .gx .details .val { font-size: .9rem; margin-top: 2px; }
@@ -77,12 +81,15 @@
         .gx .foot { padding: .8rem 1rem; border-top: 1px solid var(--border); }
     </style>
 
-    <div class="gx">
+    <div class="gx {{ $listCollapsed ? 'collapsed' : '' }}">
         {{-- Lista --}}
-        <div class="panel">
+        <div class="panel" @if($listCollapsed) style="display:none;" @endif>
             @php($cnt = $this->counts())
             <div class="list-head">
-                <div class="lh-title"><x-heroicon-s-chat-bubble-left-right style="width:20px;height:20px;color:#f59e0b;" /> Conversaciones</div>
+                <div class="lh-title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="display:flex;align-items:center;gap:.4rem;"><x-heroicon-s-chat-bubble-left-right style="width:20px;height:20px;color:#f59e0b;" /> Conversaciones</span>
+                    <button class="collapse-btn" wire:click="toggleList" title="Minimizar lista"><x-heroicon-o-chevron-double-left style="width:16px;height:16px;" /></button>
+                </div>
                 <div class="tabs">
                     <button class="tab {{ $filter === 'all' ? 'active' : '' }}" wire:click="setFilter('all')">
                         Todos <span class="cbadge">{{ $cnt['all'] }}</span>
@@ -124,6 +131,14 @@
         <div class="panel">
             <div class="thread-wrap">
                 @if (! $selected)
+                    @if ($listCollapsed)
+                        <div class="thead" style="justify-content:flex-start;">
+                            <button class="expand-btn" wire:click="toggleList" title="Mostrar lista">
+                                <x-heroicon-o-chevron-double-right style="width:16px;height:16px;" />
+                            </button>
+                            <span class="muted" style="font-size:.85rem;">Lista minimizada</span>
+                        </div>
+                    @endif
                     <div class="body" style="align-items:center; justify-content:center;">
                         <div class="empty">
                             <x-heroicon-o-chat-bubble-left-right />
@@ -133,6 +148,11 @@
                 @else
                     <div class="thead">
                         <div style="display:flex; align-items:center; gap:.6rem;">
+                            @if ($listCollapsed)
+                                <button class="expand-btn" wire:click="toggleList" title="Mostrar lista">
+                                    <x-heroicon-o-chevron-double-right style="width:16px;height:16px;" />
+                                </button>
+                            @endif
                             <span class="av"><x-heroicon-s-user /></span>
                             <div>
                                 <div style="font-weight:600;">{{ $selected->contactLabel() }}</div>

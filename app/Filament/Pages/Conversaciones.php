@@ -43,6 +43,14 @@ class Conversaciones extends Page
 
     public string $draft = '';
 
+    /** Colapsar la lista de conversaciones para dar más espacio al chat. */
+    public bool $listCollapsed = false;
+
+    public function toggleList(): void
+    {
+        $this->listCollapsed = ! $this->listCollapsed;
+    }
+
     /** Pestaña activa: all | bot | humano. */
     public string $filter = 'all';
 

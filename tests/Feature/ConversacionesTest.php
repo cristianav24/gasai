@@ -122,6 +122,16 @@ class ConversacionesTest extends TestCase
         $this->assertCount(0, $this->gateway->sent); // no se envió
     }
 
+    public function test_toggle_minimiza_y_restaura_la_lista(): void
+    {
+        Livewire::test(Conversaciones::class)
+            ->assertSet('listCollapsed', false)
+            ->call('toggleList')
+            ->assertSet('listCollapsed', true)
+            ->call('toggleList')
+            ->assertSet('listCollapsed', false);
+    }
+
     public function test_la_bandeja_solo_muestra_conversaciones_del_tenant(): void
     {
         $mia = $this->conversation();
