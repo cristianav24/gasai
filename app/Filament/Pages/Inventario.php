@@ -33,6 +33,12 @@ class Inventario extends Page
 
     protected static ?int $navigationSort = 7;
 
+    /** Umbral de stock bajo (para el aviso ámbar). */
+    public const LOW_STOCK = 5;
+
+    /** Búsqueda por nombre de producto. */
+    public string $search = '';
+
     /** @return Collection<int, Branch> */
     public function branches(): Collection
     {
@@ -41,6 +47,15 @@ class Inventario extends Page
 
     /** @return Collection<int, Product> */
     public function products(): Collection
+    {
+        return Product::query()
+            ->when($this->search !== '', fn ($q) => $q->where('name', 'ilike', '%' . $this->search . '%'))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /** Todos los productos (sin filtro) para calcular el resumen. */
+    public function allProducts(): Collection
     {
         return Product::orderBy('name')->get();
     }

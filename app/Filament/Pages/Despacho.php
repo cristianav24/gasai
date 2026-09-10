@@ -98,8 +98,9 @@ class Despacho extends Page
 
         // Al entregar: descuenta stock y actualiza el saldo de envases (idempotente).
         if ($next === 'entregado') {
-            app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
+            $warnings = app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
             app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
+            $this->notifyStockWarnings($warnings);
         }
 
         Notification::make()->success()->title('Pedido: ' . $this->label($next))->send();
@@ -367,11 +368,26 @@ class Despacho extends Page
 
         if ($order->status !== 'entregado') {
             $order->update(['status' => 'entregado']);
-            app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
+            $warnings = app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
             app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
+            $this->notifyStockWarnings($warnings);
         }
 
         return redirect($this->cobrarUrl($orderId));
+    }
+
+    /** Aviso (no bloqueante) cuando una entrega dejó stock en negativo. */
+    private function notifyStockWarnings(array $warnings): void
+    {
+        if (empty($warnings)) {
+            return;
+        }
+
+        Notification::make()->warning()
+            ->title('Entregaste sin stock suficiente')
+            ->body('Quedó en negativo: ' . implode(', ', $warnings) . '. Carga inventario en “Ajustar stock”.')
+            ->persistent()
+            ->send();
     }
 
     // ---------- Editar precios de un pedido existente ----------

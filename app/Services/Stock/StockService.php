@@ -70,19 +70,35 @@ class StockService
     /**
      * Descuenta el stock de un pedido al entregarlo. Idempotente: si ya se aplicó
      * (stock_applied_at), no vuelve a descontar.
+     *
+     * Devuelve los avisos de faltante: productos cuyo stock quedó en negativo por
+     * no haber existencias suficientes (para advertir sin bloquear la entrega).
+     *
+     * @return array<int, string>
      */
-    public function applyOrderDelivery(Order $order): void
+    public function applyOrderDelivery(Order $order): array
     {
         if ($order->stock_applied_at !== null) {
-            return;
+            return [];
         }
 
         $order->loadMissing('items');
+        $warnings = [];
 
-        DB::transaction(function () use ($order): void {
+        DB::transaction(function () use ($order, &$warnings): void {
             foreach ($order->items as $item) {
                 if (! $item->product_id) {
                     continue;
+                }
+
+                $current = (int) (StockLevel::withoutGlobalScopes()
+                    ->where('branch_id', $order->branch_id)
+                    ->where('product_id', $item->product_id)
+                    ->value('quantity') ?? 0);
+
+                if ($current < $item->quantity) {
+                    $resultante = $current - $item->quantity;
+                    $warnings[] = "{$item->product_name} (quedó en {$resultante})";
                 }
 
                 $this->adjust(
@@ -97,5 +113,7 @@ class StockService
 
             $order->forceFill(['stock_applied_at' => now()])->save();
         });
+
+        return $warnings;
     }
 }

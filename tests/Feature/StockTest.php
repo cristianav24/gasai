@@ -107,6 +107,28 @@ class StockTest extends TestCase
         $this->assertSame(7, $this->stockAt($this->branch));
     }
 
+    public function test_entregar_sin_stock_avisa_del_negativo(): void
+    {
+        // Sin cargar stock: entregar 2 deja el producto en -2 y devuelve el aviso.
+        $order = $this->orderWithItems(2);
+
+        $warnings = app(StockService::class)->applyOrderDelivery($order);
+
+        $this->assertNotEmpty($warnings);
+        $this->assertStringContainsString('Bidón 20L', $warnings[0]);
+        $this->assertSame(-2, $this->stockAt($this->branch));
+    }
+
+    public function test_entregar_con_stock_suficiente_no_avisa(): void
+    {
+        app(StockService::class)->adjust($this->tenant->id, $this->branch->id, $this->producto->id, 10, 'ajuste');
+        $order = $this->orderWithItems(3);
+
+        $warnings = app(StockService::class)->applyOrderDelivery($order);
+
+        $this->assertEmpty($warnings);
+    }
+
     public function test_transferencia_entre_sucursales(): void
     {
         $sucursal2 = $this->tenant->branches()->create(['name' => 'Norte', 'active' => true]);

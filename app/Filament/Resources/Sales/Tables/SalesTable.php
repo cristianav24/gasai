@@ -3,8 +3,10 @@
 namespace App\Filament\Resources\Sales\Tables;
 
 use App\Models\Sale;
+use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -103,6 +105,12 @@ class SalesTable
                     ->modalContent(fn (Sale $record) => view('filament.sales.detail', [
                         'sale' => $record->load(['items', 'customer', 'paymentMethod', 'cashier', 'order', 'branch']),
                     ])),
+
+                Action::make('ticket')
+                    ->label('Ticket')
+                    ->icon(Heroicon::OutlinedPrinter)
+                    ->color('gray')
+                    ->url(fn (Sale $record): string => route('ticket.sale', $record), shouldOpenInNewTab: true),
             ]);
     }
 }
