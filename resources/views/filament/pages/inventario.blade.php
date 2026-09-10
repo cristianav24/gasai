@@ -1,11 +1,11 @@
 <x-filament-panels::page>
-    @php($branches = $this->branches())
-    @php($products = $this->products())
-    @php($allProducts = $this->allProducts())
-    @php($stock = $this->stockMap())
-    @php($low = \App\Filament\Pages\Inventario::LOW_STOCK)
-
     @php
+        $branches = $this->branches();
+        $products = $this->products();
+        $allProducts = $this->allProducts();
+        $stock = $this->stockMap();
+        $low = \App\Filament\Pages\Inventario::LOW_STOCK;
+
         // Resumen: total de existencias por producto sumando todas las sucursales.
         $totales = $allProducts->map(fn ($p) => collect($branches)->sum(fn ($b) => $stock["{$b->id}-{$p->id}"] ?? 0));
         $agotados = $totales->filter(fn ($t) => $t <= 0)->count();
