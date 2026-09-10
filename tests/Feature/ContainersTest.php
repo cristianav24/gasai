@@ -74,6 +74,10 @@ class ContainersTest extends TestCase
             'unit_price_list' => $product->price,
         ]);
 
+        // Stock suficiente para que la entrega no quede bloqueada.
+        app(\App\Services\Stock\StockService::class)
+            ->adjust($this->tenant->id, $this->branch->id, $product->id, $qty, 'ajuste');
+
         Livewire::test(Despacho::class)->call('advance', $order->id); // → entregado
 
         return $order;
@@ -137,5 +141,15 @@ class ContainersTest extends TestCase
         $this->assertCount(1, $res['envases']);
         $this->assertSame('Bidón 20L', $res['envases'][0]['tipo']);
         $this->assertSame(2, $res['envases'][0]['saldo']);
+    }
+
+    public function test_la_pantalla_de_envases_renderiza_con_saldos(): void
+    {
+        app(ContainerService::class)->adjust($this->tenant->id, $this->customer->id, $this->bidon->id, 3, 'entrega_nueva');
+
+        Livewire::test(\App\Filament\Pages\Envases::class)
+            ->assertOk()
+            ->assertSee('Juan')
+            ->assertSee('Bidón 20L');
     }
 }

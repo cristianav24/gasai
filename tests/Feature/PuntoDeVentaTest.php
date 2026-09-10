@@ -120,7 +120,7 @@ class PuntoDeVentaTest extends TestCase
             ->assertSet('cart.0.qty', 2);
     }
 
-    public function test_cobrar_venta_ligada_a_pedido_lo_marca_entregado(): void
+    private function orderConItems(): Order
     {
         $order = Order::create([
             'tenant_id' => $this->tenant->id, 'branch_id' => $this->branch->id,
@@ -132,6 +132,16 @@ class PuntoDeVentaTest extends TestCase
             'product_name' => 'Bidón 20L', 'quantity' => 1, 'unit_price_list' => 25,
         ]);
 
+        return $order;
+    }
+
+    public function test_cobrar_venta_ligada_a_pedido_lo_marca_entregado(): void
+    {
+        // Con stock suficiente, cobrar entrega el pedido.
+        app(\App\Services\Stock\StockService::class)
+            ->adjust($this->tenant->id, $this->branch->id, $this->producto->id, 5, 'ajuste');
+        $order = $this->orderConItems();
+
         Livewire::test(PuntoDeVenta::class)
             ->set('orderId', $order->id)
             ->set('cart', $this->line())
@@ -141,6 +151,21 @@ class PuntoDeVentaTest extends TestCase
         $order->refresh();
         $this->assertSame('entregado', $order->status);
         $this->assertNotNull($order->stock_applied_at); // stock aplicado una sola vez
+    }
+
+    public function test_no_cobra_pedido_sin_stock_suficiente(): void
+    {
+        // Sin cargar stock: cobrar el pedido queda bloqueado (no crea venta ni entrega).
+        $order = $this->orderConItems();
+
+        Livewire::test(PuntoDeVenta::class)
+            ->set('orderId', $order->id)
+            ->set('cart', $this->line())
+            ->set('paymentMethodId', $this->efectivo->id)
+            ->call('cobrar');
+
+        $this->assertSame(0, Sale::withoutGlobalScopes()->count());
+        $this->assertSame('confirmado', $order->fresh()->status);
     }
 
     public function test_alta_rapida_de_cliente(): void

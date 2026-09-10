@@ -94,13 +94,17 @@ class Despacho extends Page
             return;
         }
 
+        // No se puede entregar sin stock suficiente.
+        if ($next === 'entregado' && $this->blockedByStock($order)) {
+            return;
+        }
+
         $order->update(['status' => $next]);
 
         // Al entregar: descuenta stock y actualiza el saldo de envases (idempotente).
         if ($next === 'entregado') {
-            $warnings = app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
+            app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
             app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
-            $this->notifyStockWarnings($warnings);
         }
 
         Notification::make()->success()->title('Pedido: ' . $this->label($next))->send();
@@ -367,27 +371,36 @@ class Despacho extends Page
         $order = Order::findOrFail($orderId);
 
         if ($order->status !== 'entregado') {
+            if ($this->blockedByStock($order)) {
+                return null;
+            }
             $order->update(['status' => 'entregado']);
-            $warnings = app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
+            app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
             app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
-            $this->notifyStockWarnings($warnings);
         }
 
         return redirect($this->cobrarUrl($orderId));
     }
 
-    /** Aviso (no bloqueante) cuando una entrega dejó stock en negativo. */
-    private function notifyStockWarnings(array $warnings): void
+    /**
+     * Bloquea la entrega si falta stock. Devuelve true (y avisa) cuando no se
+     * puede entregar; false cuando hay existencias suficientes.
+     */
+    private function blockedByStock(Order $order): bool
     {
-        if (empty($warnings)) {
-            return;
+        $short = app(\App\Services\Stock\StockService::class)->shortfallsFor($order);
+
+        if (empty($short)) {
+            return false;
         }
 
-        Notification::make()->warning()
-            ->title('Entregaste sin stock suficiente')
-            ->body('Quedó en negativo: ' . implode(', ', $warnings) . '. Carga inventario en “Ajustar stock”.')
+        Notification::make()->danger()
+            ->title('No hay stock suficiente para entregar')
+            ->body(implode(', ', $short) . '. Carga inventario en Inventario → “Ajustar stock”.')
             ->persistent()
             ->send();
+
+        return true;
     }
 
     // ---------- Editar precios de un pedido existente ----------

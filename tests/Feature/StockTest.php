@@ -119,6 +119,18 @@ class StockTest extends TestCase
         $this->assertSame(-2, $this->stockAt($this->branch));
     }
 
+    public function test_no_se_puede_entregar_sin_stock(): void
+    {
+        // orderWithItems nace en 'en_ruta'; sin stock, avanzar a entregado se bloquea.
+        $order = $this->orderWithItems(2);
+
+        Livewire::test(Despacho::class)->call('advance', $order->id);
+
+        $this->assertSame('en_ruta', $order->fresh()->status); // no avanzó
+        $this->assertNull($order->fresh()->stock_applied_at);
+        $this->assertSame(0, $this->stockAt($this->branch)); // no descontó nada
+    }
+
     public function test_entregar_con_stock_suficiente_no_avisa(): void
     {
         app(StockService::class)->adjust($this->tenant->id, $this->branch->id, $this->producto->id, 10, 'ajuste');

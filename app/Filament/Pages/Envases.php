@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\ContainerBalance;
+use App\Models\ContainerMovement;
 use App\Models\ContainerType;
 use App\Models\Customer;
 use App\Services\Containers\ContainerService;
@@ -40,6 +41,21 @@ class Envases extends Page
             ->where('balance', '!=', 0)
             ->get()
             ->groupBy('customer_id');
+    }
+
+    /**
+     * Fecha del último movimiento de envases por cliente (para mostrar “desde
+     * cuándo” el cliente tiene envases nuestros).
+     *
+     * @return array<int, string>
+     */
+    public function lastMovements(): array
+    {
+        return ContainerMovement::query()
+            ->selectRaw('customer_id, MAX(created_at) as ultimo')
+            ->groupBy('customer_id')
+            ->pluck('ultimo', 'customer_id')
+            ->all();
     }
 
     protected function getHeaderActions(): array

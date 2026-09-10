@@ -68,6 +68,35 @@ class StockService
     }
 
     /**
+     * Productos del pedido sin existencias suficientes en su sucursal. Vacío si
+     * todo el pedido puede entregarse. Solo lee; no modifica stock.
+     *
+     * @return array<int, string>
+     */
+    public function shortfallsFor(Order $order): array
+    {
+        $order->loadMissing('items');
+        $short = [];
+
+        foreach ($order->items as $item) {
+            if (! $item->product_id) {
+                continue;
+            }
+
+            $current = (int) (StockLevel::withoutGlobalScopes()
+                ->where('branch_id', $order->branch_id)
+                ->where('product_id', $item->product_id)
+                ->value('quantity') ?? 0);
+
+            if ($current < $item->quantity) {
+                $short[] = "{$item->product_name} (hay {$current}, necesitas {$item->quantity})";
+            }
+        }
+
+        return $short;
+    }
+
+    /**
      * Descuenta el stock de un pedido al entregarlo. Idempotente: si ya se aplicó
      * (stock_applied_at), no vuelve a descontar.
      *

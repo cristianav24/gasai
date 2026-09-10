@@ -305,6 +305,23 @@ class PuntoDeVenta extends Page
 
     private function persist(string $status): void
     {
+        // Cobrar un pedido lo entrega y descuenta stock: no se permite sin existencias.
+        if ($status === 'cobrada' && $this->orderId) {
+            $order = Order::find($this->orderId);
+            if ($order && $order->status !== 'entregado') {
+                $short = app(\App\Services\Stock\StockService::class)->shortfallsFor($order);
+                if (! empty($short)) {
+                    Notification::make()->danger()
+                        ->title('No se puede cobrar: sin stock')
+                        ->body(implode(', ', $short) . '. Carga inventario en Inventario → “Ajustar stock”.')
+                        ->persistent()
+                        ->send();
+
+                    return;
+                }
+            }
+        }
+
         $branch = $this->branchId ? Branch::find($this->branchId) : null;
         $listTotal = $this->subtotalLista();
         $chargedTotal = $this->totalCobrado();
@@ -355,12 +372,11 @@ class PuntoDeVenta extends Page
         // Al cobrar una venta ligada a un pedido, cerramos el pedido: pasa a
         // entregado y se aplican stock y envases (idempotente, no duplica si ya
         // se había entregado desde el tablero).
-        $stockWarnings = [];
         if ($status === 'cobrada' && $this->orderId) {
             $order = Order::find($this->orderId);
             if ($order && $order->status !== 'entregado') {
                 $order->update(['status' => 'entregado']);
-                $stockWarnings = app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
+                app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
                 app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
             }
         }
@@ -380,15 +396,6 @@ class PuntoDeVenta extends Page
         }
 
         $notif->send();
-
-        // Aviso (no bloqueante) si la entrega dejó stock en negativo.
-        if (! empty($stockWarnings)) {
-            Notification::make()->warning()
-                ->title('Entregaste sin stock suficiente')
-                ->body('Quedó en negativo: ' . implode(', ', $stockWarnings) . '. Carga inventario en Inventario → “Ajustar stock”.')
-                ->persistent()
-                ->send();
-        }
 
         $this->cancelar();
     }
