@@ -352,9 +352,22 @@ class PuntoDeVenta extends Page
             return $sale;
         });
 
+        // Al cobrar una venta ligada a un pedido, cerramos el pedido: pasa a
+        // entregado y se aplican stock y envases (idempotente, no duplica si ya
+        // se había entregado desde el tablero).
+        if ($status === 'cobrada' && $this->orderId) {
+            $order = Order::find($this->orderId);
+            if ($order && $order->status !== 'entregado') {
+                $order->update(['status' => 'entregado']);
+                app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
+                app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
+            }
+        }
+
         Notification::make()->success()
             ->title($status === 'cobrada' ? 'Venta cobrada' : 'Venta en espera')
-            ->body('Total: S/ ' . number_format((float) $sale->total, 2))
+            ->body('Total: S/ ' . number_format((float) $sale->total, 2)
+                . ($status === 'cobrada' && $this->orderId ? ' · Pedido entregado' : ''))
             ->send();
 
         $this->cancelar();

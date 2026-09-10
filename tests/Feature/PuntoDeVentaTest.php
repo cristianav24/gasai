@@ -120,6 +120,29 @@ class PuntoDeVentaTest extends TestCase
             ->assertSet('cart.0.qty', 2);
     }
 
+    public function test_cobrar_venta_ligada_a_pedido_lo_marca_entregado(): void
+    {
+        $order = Order::create([
+            'tenant_id' => $this->tenant->id, 'branch_id' => $this->branch->id,
+            'status' => 'confirmado', 'channel' => 'whatsapp', 'total' => 25,
+            'scheduled_date' => '2026-09-12', 'scheduled_slot' => 'manana',
+        ]);
+        $order->items()->create([
+            'tenant_id' => $this->tenant->id, 'product_id' => $this->producto->id,
+            'product_name' => 'Bidón 20L', 'quantity' => 1, 'unit_price_list' => 25,
+        ]);
+
+        Livewire::test(PuntoDeVenta::class)
+            ->set('orderId', $order->id)
+            ->set('cart', $this->line())
+            ->set('paymentMethodId', $this->efectivo->id)
+            ->call('cobrar');
+
+        $order->refresh();
+        $this->assertSame('entregado', $order->status);
+        $this->assertNotNull($order->stock_applied_at); // stock aplicado una sola vez
+    }
+
     public function test_alta_rapida_de_cliente(): void
     {
         Livewire::test(PuntoDeVenta::class)
