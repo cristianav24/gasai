@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\Despacho;
 use App\Models\Branch;
+use App\Models\Customer;
+use App\Models\DeliveryZone;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\Tenant;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -86,6 +89,64 @@ class DespachoTest extends TestCase
         // Los cancelados no aparecen en las columnas del tablero.
         $grupos = $component->instance()->ordersByStatus();
         $this->assertFalse($grupos->flatten()->contains(fn ($o) => $o->id === $order->id));
+    }
+
+    public function test_crear_pedido_manual_con_cliente_nuevo_e_items(): void
+    {
+        $bidon = Product::create(['name' => 'Bidón 20L', 'price' => 20, 'unit' => 'bidón']);
+        $zona = DeliveryZone::create(['tenant_id' => $this->tenant->id, 'name' => 'El Tambo', 'delivery_fee' => 3, 'active' => true]);
+
+        Livewire::test(Despacho::class)
+            ->call('openNewOrder')
+            ->set('customerMode', 'nuevo')
+            ->set('noName', 'Doña Rosa')
+            ->set('noPhone', '+51944555666')
+            ->set('noItems', [['product_id' => $bidon->id, 'qty' => 2]])
+            ->set('noZoneId', $zona->id)
+            ->set('noDate', '2026-09-12')
+            ->set('noSlot', 'tarde')
+            ->call('createOrder')
+            ->assertSet('showNewOrder', false);
+
+        $order = Order::withoutGlobalScopes()->latest('id')->firstOrFail();
+        $this->assertSame('manual', $order->channel);
+        $this->assertSame('pendiente', $order->status);
+        $this->assertSame('43.00', $order->total);   // 2 x 20 + 3 envío
+        $this->assertSame('tarde', $order->scheduled_slot);
+        $this->assertSame(1, $order->items()->count());
+        $this->assertSame(2, (int) $order->items()->first()->quantity);
+
+        $customer = Customer::withoutGlobalScopes()->firstWhere('phone', '+51944555666');
+        $this->assertNotNull($customer);
+        $this->assertSame('Doña Rosa', $customer->name);
+        $this->assertSame($customer->id, $order->customer_id);
+    }
+
+    public function test_pedido_manual_hora_exacta_exige_hora(): void
+    {
+        $bidon = Product::create(['name' => 'Bidón 20L', 'price' => 20, 'unit' => 'bidón']);
+
+        Livewire::test(Despacho::class)
+            ->call('openNewOrder')
+            ->set('noName', 'Cliente')
+            ->set('noItems', [['product_id' => $bidon->id, 'qty' => 1]])
+            ->set('noSlot', 'hora_exacta')
+            ->set('noTime', '')
+            ->call('createOrder')
+            ->assertSet('showNewOrder', true); // no se crea, el modal sigue abierto
+
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
+    }
+
+    public function test_pedido_manual_sin_items_no_se_crea(): void
+    {
+        Livewire::test(Despacho::class)
+            ->call('openNewOrder')
+            ->set('noName', 'Cliente')
+            ->call('createOrder')
+            ->assertSet('showNewOrder', true);
+
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
     }
 
     public function test_el_tablero_no_muestra_pedidos_de_otro_tenant(): void
