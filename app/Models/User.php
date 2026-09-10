@@ -28,6 +28,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         'name',
         'email',
         'password',
+        'is_super_admin',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_super_admin' => 'boolean',
         ];
     }
 
@@ -85,7 +87,13 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        // El panel de plataforma es solo para super-admins.
+        if ($panel->getId() === 'super') {
+            return (bool) $this->is_super_admin;
+        }
+
+        // El panel del negocio requiere pertenecer al menos a un tenant.
+        return $this->tenants()->exists();
     }
 
     /**

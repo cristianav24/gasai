@@ -28,9 +28,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->registration()
+            // Sin auto-registro público: las altas de negocios y usuarios las
+            // controla el super-admin desde el panel de plataforma (/super).
             ->tenant(Tenant::class, slugAttribute: 'slug', ownershipRelationship: 'tenant')
-            ->tenantRegistration(\App\Filament\Pages\Tenancy\RegisterTenant::class)
             ->sidebarCollapsibleOnDesktop()
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
