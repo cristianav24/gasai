@@ -13,10 +13,10 @@
             --shadow: 0 1px 3px rgba(0,0,0,.5);
         }
         .gx { display: grid; grid-template-columns: 340px 1fr 320px; gap: 1rem;
-              min-height: calc(100vh - 130px); align-items: stretch; transition: grid-template-columns .18s ease; }
+              height: calc(100vh - 130px); align-items: stretch; transition: grid-template-columns .18s ease; }
         .gx.collapsed { grid-template-columns: 1fr 320px; }
         @media (max-width: 1100px) { .gx, .gx.collapsed { grid-template-columns: 320px 1fr; } .gx .details { display: none; } }
-        @media (max-width: 800px) { .gx, .gx.collapsed { grid-template-columns: 1fr; min-height:auto; } }
+        @media (max-width: 800px) { .gx, .gx.collapsed { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 130px); } }
         .gx .collapse-btn, .gx .expand-btn { display:flex; align-items:center; justify-content:center; width:30px; height:30px;
             border-radius:.5rem; border:1px solid var(--border); background:var(--elev); color:var(--muted); cursor:pointer; }
         .gx .collapse-btn:hover, .gx .expand-btn:hover { color:var(--text); }
@@ -26,7 +26,8 @@
         .gx .chipx { display: inline-block; font-size: .74rem; border-radius: 999px; padding: .1rem .55rem;
             background: var(--elev); border: 1px solid var(--border); margin: 2px 4px 2px 0; }
         .gx .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; box-shadow: var(--shadow);
-            overflow: hidden; display: flex; flex-direction: column; }
+            overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+        .gx .details { overflow-y: auto; }
         .gx .muted { color: var(--muted); }
 
         /* Lista */
