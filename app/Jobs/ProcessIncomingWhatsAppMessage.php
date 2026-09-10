@@ -120,10 +120,24 @@ class ProcessIncomingWhatsAppMessage implements ShouldQueue
             return;
         }
 
-        $result = $gateway->sendText($account, $conversation->phone, $reply);
+        // Destinatario: el teléfono si lo tenemos, si no el identificador estable
+        // (BSUID) — el cliente puede tener su número oculto (usernames de WhatsApp).
+        $recipient = $conversation->phone ?: $conversation->wa_user_id;
+
+        if (blank($recipient)) {
+            Log::warning('WhatsApp: sin destinatario para responder.', ['conversation_id' => $conversation->id]);
+
+            return;
+        }
+
+        $result = $gateway->sendText($account, $recipient, $reply);
 
         if (! ($result['ok'] ?? false)) {
-            Log::error('WhatsApp: falló el envío.', ['error' => $result['error'] ?? 'desconocido']);
+            Log::error('WhatsApp: falló el envío.', [
+                'conversation_id' => $conversation->id,
+                'recipient' => $recipient,
+                'error' => $result['error'] ?? 'desconocido',
+            ]);
         }
     }
 }

@@ -174,8 +174,9 @@ class Conversaciones extends Page
                     ->send();
             } else {
                 $account = WhatsappAccount::where('tenant_id', $conversation->tenant_id)->first();
-                if ($account) {
-                    $result = $gateway->sendText($account, $conversation->phone, $text);
+                $recipient = $conversation->phone ?: $conversation->wa_user_id;
+                if ($account && filled($recipient)) {
+                    $result = $gateway->sendText($account, $recipient, $text);
                     if (! ($result['ok'] ?? false)) {
                         Notification::make()->danger()->title('No se pudo enviar por WhatsApp')
                             ->body($result['error'] ?? '')->send();
