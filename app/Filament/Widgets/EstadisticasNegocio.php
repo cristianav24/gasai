@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\CashSession;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Sale;
@@ -35,6 +36,9 @@ class EstadisticasNegocio extends StatsOverviewWidget
 
         $clientes = Customer::count();
 
+        $caja = CashSession::where('status', 'abierta')->first();
+        $efectivo = $caja?->expectedCash();
+
         // Tendencia de los últimos 7 días para el mini-gráfico de la primera tarjeta.
         $tendencia = collect(range(6, 0))
             ->map(fn (int $d): float => (float) Sale::where('status', 'cobrada')
@@ -63,6 +67,11 @@ class EstadisticasNegocio extends StatsOverviewWidget
                 ->description('registrados')
                 ->descriptionIcon('heroicon-m-users')
                 ->color('gray'),
+
+            Stat::make('Efectivo en caja', $efectivo !== null ? 'S/ ' . number_format($efectivo, 2) : 'Cerrada')
+                ->description($efectivo !== null ? 'turno abierto' : 'sin turno abierto')
+                ->descriptionIcon('heroicon-m-banknotes')
+                ->color($efectivo !== null ? 'success' : 'gray'),
         ];
     }
 }
