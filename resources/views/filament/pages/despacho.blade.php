@@ -112,6 +112,32 @@
             background: linear-gradient(135deg, #f59e0b, #f97316); box-shadow: 0 4px 12px rgba(245,158,11,.35); }
         .gb .btn-ghost { padding: .6rem 1rem; border-radius: .7rem; font-weight: 700; font-size: .9rem; cursor: pointer;
             background: transparent; color: var(--muted); border: 1px solid var(--border); }
+
+        /* Acción principal de entrega/cobro y secundarias */
+        .gb .o-deliver { display: flex; align-items: center; justify-content: center; gap: .35rem; width: 100%;
+            margin-top: .6rem; padding: .5rem; border: 0; cursor: pointer; border-radius: .6rem; font-weight: 800;
+            font-size: .82rem; color: #fff; text-decoration: none;
+            background: linear-gradient(135deg, #16a34a, #22c55e); box-shadow: 0 3px 10px rgba(22,163,74,.3); }
+        .gb .o-deliver.alt { background: linear-gradient(135deg, #0ea5e9, #06b6d4); box-shadow: 0 3px 10px rgba(6,182,212,.3); }
+        .gb .o-deliver:hover { filter: brightness(1.05); }
+        .gb .o-deliver svg { width: 15px; height: 15px; }
+        .gb .o-sub { display: flex; gap: .35rem; margin-top: .5rem; flex-wrap: wrap; }
+        .gb .o-mini { display: inline-flex; align-items: center; gap: .25rem; font-size: .72rem; font-weight: 700;
+            padding: .28rem .5rem; border-radius: .45rem; border: 1px solid var(--border); background: transparent;
+            color: var(--muted); cursor: pointer; }
+        .gb .o-mini:hover { color: var(--text); }
+        .gb .o-mini.danger:hover { color: #ef4444; border-color: #ef4444; }
+        .gb .o-mini svg { width: 12px; height: 12px; }
+
+        /* Precio por línea (modal nuevo pedido) */
+        .gb .item-row .fld.price { width: 84px; flex: 0 0 84px; text-align: right; }
+        .gb .item-hint { font-size: .72rem; color: var(--muted); margin-top: .1rem; }
+
+        /* Modal editar precios */
+        .gb .edit-row { display: flex; align-items: center; gap: .7rem; padding: .55rem 0; border-bottom: 1px solid var(--border); }
+        .gb .er-name { font-weight: 700; font-size: .9rem; }
+        .gb .er-sub { font-size: .74rem; }
+        .gb .edit-row .fld.price { width: 104px; flex: 0 0 104px; text-align: right; }
     </style>
 
     <div class="gb">
@@ -171,23 +197,33 @@
                                     @endforeach
                                 </select>
 
-                                {{-- Acciones --}}
-                                <div class="o-actions">
-                                    @if ($order->nextStatus())
-                                        <button class="o-btn" style="background: {{ $accents[$order->nextStatus()] ?? '#f59e0b' }};"
-                                            wire:click="advance({{ $order->id }})">
-                                            {{ $this->label($order->nextStatus()) }}
-                                            <x-heroicon-s-arrow-right style="width:13px;height:13px;" />
+                                {{-- Acción principal: entregar y cobrar (o cobrar si ya se entregó) --}}
+                                @if ($status !== 'entregado')
+                                    <button class="o-deliver" wire:click="deliverAndCharge({{ $order->id }})">
+                                        <x-heroicon-o-banknotes /> Entregar y cobrar
+                                    </button>
+                                @else
+                                    <a href="{{ $this->cobrarUrl($order->id) }}" class="o-deliver alt">
+                                        <x-heroicon-o-banknotes /> Cobrar en POS
+                                    </a>
+                                @endif
+
+                                {{-- Secundarias --}}
+                                <div class="o-sub">
+                                    @if ($order->nextStatus() && $status !== 'entregado')
+                                        <button class="o-mini" wire:click="advance({{ $order->id }})"
+                                            style="color: {{ $accents[$order->nextStatus()] ?? '#64748b' }};"
+                                            title="Avanzar un paso sin cobrar">
+                                            <x-heroicon-s-arrow-right />{{ $this->label($order->nextStatus()) }}
                                         </button>
                                     @endif
-                                    <button class="o-btn ghost" wire:click="cancel({{ $order->id }})" title="Cancelar pedido">
-                                        <x-heroicon-o-x-mark style="width:15px;height:15px;" />
+                                    <button class="o-mini" wire:click="openEdit({{ $order->id }})" title="Editar precios">
+                                        <x-heroicon-o-pencil-square />Precios
+                                    </button>
+                                    <button class="o-mini danger" wire:click="cancel({{ $order->id }})" title="Cancelar pedido">
+                                        <x-heroicon-o-x-mark />
                                     </button>
                                 </div>
-
-                                <a href="{{ $this->cobrarUrl($order->id) }}" class="o-cobrar">
-                                    <x-heroicon-o-banknotes /> Cobrar en POS
-                                </a>
                             </div>
                         @empty
                             <div class="col-empty">
@@ -237,18 +273,24 @@
                         {{-- Productos --}}
                         <div>
                             <label class="fld-label">Productos</label>
+                            @php($prodList = $this->productsList())
+                            @php($prodPrices = $prodList->pluck('price', 'id'))
                             @foreach ($noItems as $i => $line)
                                 <div class="item-row" wire:key="it-{{ $i }}" style="margin-bottom:.5rem;">
                                     <select class="fld prod" wire:model.live="noItems.{{ $i }}.product_id">
                                         <option value="">Producto…</option>
-                                        @foreach ($this->productsList() as $p)
+                                        @foreach ($prodList as $p)
                                             <option value="{{ $p->id }}">{{ $p->name }} · S/ {{ number_format((float) $p->price, 2) }}</option>
                                         @endforeach
                                     </select>
-                                    <input type="number" min="1" class="fld qty" wire:model.live="noItems.{{ $i }}.qty" />
+                                    <input type="number" min="1" class="fld qty" wire:model.live="noItems.{{ $i }}.qty" title="Cantidad" />
+                                    <input type="number" step="0.01" min="0" class="fld price" wire:model.live="noItems.{{ $i }}.price"
+                                        title="Precio vendido"
+                                        placeholder="{{ ! empty($line['product_id']) && isset($prodPrices[$line['product_id']]) ? number_format((float) $prodPrices[$line['product_id']], 2, '.', '') : 'Precio' }}" />
                                     <button type="button" class="item-del" wire:click="removeOrderItem({{ $i }})"><x-heroicon-o-trash /></button>
                                 </div>
                             @endforeach
+                            <p class="item-hint">Deja el precio vacío para usar el de lista; cámbialo si lo vendiste a otro valor.</p>
                             <button type="button" class="add-item" wire:click="addOrderItem"><x-heroicon-o-plus /> Agregar producto</button>
                         </div>
 
@@ -303,6 +345,44 @@
                         <button type="button" class="btn-ghost" wire:click="closeNewOrder">Cancelar</button>
                         <button type="button" class="btn-primary" wire:click="createOrder">
                             <x-heroicon-s-check style="width:16px;height:16px;" /> Crear pedido
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- Modal: editar precios de un pedido existente --}}
+        @if ($showEdit)
+            <div class="ov" wire:key="edit-order-modal">
+                <div class="modal" style="max-width:440px;">
+                    <div class="m-head">
+                        <span class="m-title">Editar precios · #{{ $editOrderId }}</span>
+                        <button class="m-close" wire:click="closeEdit"><x-heroicon-o-x-mark /></button>
+                    </div>
+
+                    <div class="m-body">
+                        @forelse ($editItems as $i => $row)
+                            <div class="edit-row" wire:key="ed-{{ $i }}">
+                                <div style="flex:1; min-width:0;">
+                                    <div class="er-name">{{ $row['name'] }}</div>
+                                    <div class="er-sub muted">Lista: S/ {{ number_format((float) $row['list'], 2) }} · x{{ $row['qty'] }}</div>
+                                </div>
+                                <input type="number" step="0.01" min="0" class="fld price"
+                                    wire:model.live="editItems.{{ $i }}.charged" title="Precio vendido" />
+                            </div>
+                        @empty
+                            <p class="item-hint">Este pedido no tiene líneas.</p>
+                        @endforelse
+
+                        <div class="totals" style="margin-top:.9rem;">
+                            <div class="row grand"><span>Total</span><span>S/ {{ number_format($this->editTotal(), 2) }}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="m-foot">
+                        <button type="button" class="btn-ghost" wire:click="closeEdit">Cancelar</button>
+                        <button type="button" class="btn-primary" wire:click="saveEdit">
+                            <x-heroicon-s-check style="width:16px;height:16px;" /> Guardar precios
                         </button>
                     </div>
                 </div>

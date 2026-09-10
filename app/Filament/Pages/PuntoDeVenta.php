@@ -88,7 +88,8 @@ class PuntoDeVenta extends Page
                     'name' => $it->product_name,
                     'unit' => optional($it->product)->unit ?? 'unidad',
                     'list' => (float) $it->unit_price_list,
-                    'charged' => (float) $it->unit_price_list,
+                    // Precio vendido: el modificado en Despacho si existe, si no el de lista.
+                    'charged' => (float) ($it->unit_price_charged ?? $it->unit_price_list),
                     'qty' => (int) $it->quantity,
                 ];
             }

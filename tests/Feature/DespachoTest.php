@@ -122,6 +122,59 @@ class DespachoTest extends TestCase
         $this->assertSame($customer->id, $order->customer_id);
     }
 
+    public function test_pedido_manual_con_precio_vendido_editado(): void
+    {
+        $bidon = Product::create(['name' => 'Bidón + recarga', 'price' => 30, 'unit' => 'bidón']);
+
+        Livewire::test(Despacho::class)
+            ->call('openNewOrder')
+            ->set('noName', 'Cliente')
+            ->set('noItems', [['product_id' => $bidon->id, 'qty' => 1, 'price' => 35]]) // lista 30, vendido 35
+            ->set('noDate', '2026-09-12')
+            ->set('noSlot', 'manana')
+            ->call('createOrder')
+            ->assertSet('showNewOrder', false);
+
+        $order = Order::withoutGlobalScopes()->latest('id')->firstOrFail();
+        $this->assertSame('35.00', $order->total);
+        $item = $order->items()->first();
+        $this->assertSame('30.00', $item->unit_price_list);      // lista congelada
+        $this->assertSame('35.00', $item->unit_price_charged);   // precio vendido
+    }
+
+    public function test_entregar_y_cobrar_marca_entregado_y_redirige_al_pos(): void
+    {
+        $order = $this->makeOrder('confirmado');
+
+        Livewire::test(Despacho::class)
+            ->call('deliverAndCharge', $order->id)
+            ->assertRedirect(); // manda al POS con ?order=
+
+        $order->refresh();
+        $this->assertSame('entregado', $order->status);
+        $this->assertNotNull($order->stock_applied_at); // se descontó stock al entregar
+    }
+
+    public function test_editar_precios_de_pedido_existente(): void
+    {
+        $bidon = Product::create(['name' => 'Bidón + recarga', 'price' => 30, 'unit' => 'bidón']);
+        $order = $this->makeOrder('confirmado');
+        $item = $order->items()->create([
+            'tenant_id' => $this->tenant->id, 'product_id' => $bidon->id,
+            'product_name' => 'Bidón + recarga', 'quantity' => 1, 'unit_price_list' => 30,
+        ]);
+
+        Livewire::test(Despacho::class)
+            ->call('openEdit', $order->id)
+            ->assertSet('showEdit', true)
+            ->set('editItems.0.charged', 35)
+            ->call('saveEdit')
+            ->assertSet('showEdit', false);
+
+        $this->assertSame('35.00', $item->fresh()->unit_price_charged);
+        $this->assertSame('35.00', $order->fresh()->total);
+    }
+
     public function test_pedido_manual_hora_exacta_exige_hora(): void
     {
         $bidon = Product::create(['name' => 'Bidón 20L', 'price' => 20, 'unit' => 'bidón']);

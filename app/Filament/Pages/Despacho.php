@@ -171,7 +171,7 @@ class Despacho extends Page
         $this->customerMode = 'nuevo';
         $this->noDate = now()->format('Y-m-d');
         $this->noSlot = 'manana';
-        $this->noItems = [['product_id' => null, 'qty' => 1]];
+        $this->noItems = [['product_id' => null, 'qty' => 1, 'price' => null]];
         $this->showNewOrder = true;
     }
 
@@ -182,7 +182,7 @@ class Despacho extends Page
 
     public function addOrderItem(): void
     {
-        $this->noItems[] = ['product_id' => null, 'qty' => 1];
+        $this->noItems[] = ['product_id' => null, 'qty' => 1, 'price' => null];
     }
 
     public function removeOrderItem(int $index): void
@@ -190,29 +190,60 @@ class Despacho extends Page
         unset($this->noItems[$index]);
         $this->noItems = array_values($this->noItems);
         if (empty($this->noItems)) {
-            $this->noItems = [['product_id' => null, 'qty' => 1]];
+            $this->noItems = [['product_id' => null, 'qty' => 1, 'price' => null]];
         }
     }
 
-    /** Items del formulario en el formato que espera OrderPricing. */
+    /** Items del formulario en el formato que espera OrderPricing (+ override de precio). */
     private function normalizedItems(): array
     {
         return collect($this->noItems)
             ->filter(fn ($l) => ! empty($l['product_id']) && (int) $l['qty'] > 0)
-            ->map(fn ($l) => ['producto_id' => (int) $l['product_id'], 'cantidad' => (int) $l['qty']])
+            ->map(fn ($l) => [
+                'producto_id' => (int) $l['product_id'],
+                'cantidad' => (int) $l['qty'],
+                'precio' => $l['price'] ?? null,
+            ])
             ->values()
             ->all();
     }
 
-    /** Cálculo en vivo para la vista previa del total. */
-    public function newOrderCalc(): array
+    /**
+     * Desglose del pedido usando el precio VENDIDO (override por línea si existe,
+     * si no el de lista). El precio de lista se conserva aparte para el margen.
+     */
+    public function newOrderCalc(?OrderPricing $pricing = null): array
     {
-        return app(OrderPricing::class)->calcular(
-            $this->normalizedItems(),
-            $this->noZoneId ? (int) $this->noZoneId : null,
-        );
+        $pricing ??= app(OrderPricing::class);
+        $base = $this->normalizedItems();
+        $calc = $pricing->calcular($base, $this->noZoneId ? (int) $this->noZoneId : null);
+
+        $lineas = [];
+        $subtotal = 0.0;
+        foreach ($calc['lineas'] as $k => $ln) {
+            $override = $base[$k]['precio'] ?? null;
+            $charged = (is_numeric($override) && (float) $override >= 0)
+                ? round((float) $override, 2)
+                : (float) $ln['precio_unitario'];
+            $subtotal += $charged * $ln['cantidad'];
+            $lineas[] = $ln + ['charged' => $charged];
+        }
+        $subtotal = round($subtotal, 2);
+
+        return [
+            'errores' => $calc['errores'],
+            'lineas' => $lineas,
+            'subtotal' => $subtotal,
+            'costo_envio' => (float) $calc['costo_envio'],
+            'total' => round($subtotal + (float) $calc['costo_envio'], 2),
+        ];
     }
 
+    /**
+     * Cliente del pedido. Solo crea un Customer cuando hay teléfono (es la clave
+     * del contacto). Un cliente nuevo con solo nombre no se registra: el pedido
+     * queda sin cliente y el nombre se guarda en las notas (lo maneja createOrder).
+     */
     private function resolveCustomer(): ?Customer
     {
         $tenantId = Filament::getTenant()->getKey();
@@ -221,21 +252,16 @@ class Despacho extends Page
             return Customer::find($this->noCustomerId);
         }
 
-        $name = trim($this->noName);
         $phone = trim($this->noPhone);
 
-        if ($name === '' && $phone === '') {
-            return null;
-        }
-
-        if ($phone !== '') {
+        if ($this->customerMode === 'nuevo' && $phone !== '') {
             return Customer::updateOrCreate(
                 ['tenant_id' => $tenantId, 'phone' => $phone],
-                ['name' => $name ?: null],
+                ['name' => trim($this->noName) ?: null],
             );
         }
 
-        return Customer::create(['tenant_id' => $tenantId, 'name' => $name]);
+        return null;
     }
 
     public function createOrder(OrderPricing $pricing): void
@@ -259,16 +285,24 @@ class Despacho extends Page
             return;
         }
 
+        // Cliente: existente o nuevo-con-teléfono. Si escribieron solo un nombre,
+        // el pedido va sin cliente registrado y el nombre se anota en las notas.
         $customer = $this->resolveCustomer();
-        if (! $customer) {
-            Notification::make()->danger()
-                ->title('Indica el cliente')
-                ->body('Elige uno existente o escribe al menos su nombre.')->send();
+        $notes = trim($this->noNotes);
 
-            return;
+        if (! $customer) {
+            $name = trim($this->noName);
+            if ($this->customerMode === 'existente' || $name === '') {
+                Notification::make()->danger()
+                    ->title('Indica el cliente')
+                    ->body('Elige uno existente o escribe al menos su nombre.')->send();
+
+                return;
+            }
+            $notes = trim("Cliente: {$name}\n{$notes}");
         }
 
-        $calc = $pricing->calcular($items, $this->noZoneId ? (int) $this->noZoneId : null);
+        $calc = $this->newOrderCalc($pricing);
         if (! empty($calc['errores'])) {
             Notification::make()->danger()->title('Revisa el pedido')->body(implode(' ', $calc['errores']))->send();
 
@@ -282,11 +316,11 @@ class Despacho extends Page
             return;
         }
 
-        $order = DB::transaction(function () use ($customer, $branch, $calc): Order {
+        $order = DB::transaction(function () use ($customer, $branch, $calc, $notes): Order {
             $order = Order::create([
                 'tenant_id' => Filament::getTenant()->getKey(),
                 'branch_id' => $branch->id,
-                'customer_id' => $customer->id,
+                'customer_id' => $customer?->id,
                 'delivery_zone_id' => $this->noZoneId ? (int) $this->noZoneId : null,
                 'subtotal' => $calc['subtotal'],
                 'delivery_fee' => $calc['costo_envio'],
@@ -296,7 +330,7 @@ class Despacho extends Page
                 'scheduled_date' => $this->noDate,
                 'scheduled_slot' => $this->noSlot,
                 'scheduled_time' => $this->noSlot === 'hora_exacta' ? trim($this->noTime) : null,
-                'notes' => trim($this->noNotes) ?: null,
+                'notes' => $notes ?: null,
             ]);
 
             foreach ($calc['lineas'] as $linea) {
@@ -306,6 +340,7 @@ class Despacho extends Page
                     'product_name' => $linea['nombre'],
                     'quantity' => $linea['cantidad'],
                     'unit_price_list' => $linea['precio_unitario'],
+                    'unit_price_charged' => $linea['charged'],
                 ]);
             }
 
@@ -317,6 +352,97 @@ class Despacho extends Page
         Notification::make()->success()
             ->title("Pedido #{$order->id} creado")
             ->body('Total: S/ ' . number_format((float) $order->total, 2) . ' · queda en Pendiente.')
+            ->send();
+    }
+
+    // ---------- Entregar y cobrar ----------
+
+    /**
+     * Marca el pedido como entregado (descuenta stock y envases, idempotente) y
+     * redirige al POS con el cliente, los productos y el precio vendido ya cargados.
+     */
+    public function deliverAndCharge(int $orderId)
+    {
+        $order = Order::findOrFail($orderId);
+
+        if ($order->status !== 'entregado') {
+            $order->update(['status' => 'entregado']);
+            app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
+            app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
+        }
+
+        return redirect($this->cobrarUrl($orderId));
+    }
+
+    // ---------- Editar precios de un pedido existente ----------
+
+    public bool $showEdit = false;
+
+    public ?int $editOrderId = null;
+
+    /** @var array<int, array{id: int, name: string, qty: int, list: float, charged: float}> */
+    public array $editItems = [];
+
+    public function openEdit(int $orderId): void
+    {
+        $order = Order::with('items')->findOrFail($orderId);
+
+        $this->editOrderId = $order->id;
+        $this->editItems = $order->items->map(fn ($it): array => [
+            'id' => $it->id,
+            'name' => $it->product_name,
+            'qty' => (int) $it->quantity,
+            'list' => (float) $it->unit_price_list,
+            'charged' => (float) ($it->unit_price_charged ?? $it->unit_price_list),
+        ])->all();
+
+        $this->showEdit = true;
+    }
+
+    public function closeEdit(): void
+    {
+        $this->showEdit = false;
+    }
+
+    /** Total en vivo del modal de edición (precio vendido + envío del pedido). */
+    public function editTotal(): float
+    {
+        $order = $this->editOrderId ? Order::find($this->editOrderId) : null;
+        $fee = $order ? (float) $order->delivery_fee : 0.0;
+
+        $sub = collect($this->editItems)
+            ->sum(fn ($r) => round((float) $r['charged'], 2) * (int) $r['qty']);
+
+        return round($sub + $fee, 2);
+    }
+
+    public function saveEdit(): void
+    {
+        $order = Order::with('items')->findOrFail($this->editOrderId);
+
+        $subtotal = 0.0;
+        DB::transaction(function () use ($order, &$subtotal): void {
+            foreach ($this->editItems as $row) {
+                $item = $order->items->firstWhere('id', $row['id']);
+                if (! $item) {
+                    continue;
+                }
+                $charged = round((float) $row['charged'], 2);
+                $item->update(['unit_price_charged' => $charged]);
+                $subtotal += $charged * $item->quantity;
+            }
+
+            $order->update([
+                'subtotal' => round($subtotal, 2),
+                'total' => round($subtotal + (float) $order->delivery_fee, 2),
+            ]);
+        });
+
+        $this->showEdit = false;
+
+        Notification::make()->success()
+            ->title('Precios actualizados')
+            ->body('Nuevo total: S/ ' . number_format($order->fresh()->total, 2))
             ->send();
     }
 }
