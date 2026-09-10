@@ -17,19 +17,30 @@ class CloudApiGateway implements WhatsAppGateway
         private string $graphVersion,
     ) {}
 
-    public function sendText(WhatsappAccount $account, string $toPhone, string $text): array
+    public function sendText(WhatsappAccount $account, string $recipient, string $text): array
     {
         try {
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'recipient_type' => 'individual',
+                'type' => 'text',
+                'text' => ['body' => $text],
+            ];
+
+            // WhatsApp usernames: si el cliente oculta su número, el destinatario
+            // es un BSUID (ej. "PE.123...") y va en el campo 'recipient', no en 'to'
+            // (que espera un teléfono +51...). Chatwoot y otros hacen lo mismo.
+            if ($this->isPhoneNumber($recipient)) {
+                $payload['to'] = $recipient;
+            } else {
+                $payload['recipient'] = $recipient;
+            }
+
             $response = $this->http
                 ->baseUrl($this->endpoint($account->phone_number_id))
                 ->withToken($account->access_token)
                 ->acceptJson()
-                ->post('/messages', [
-                    'messaging_product' => 'whatsapp',
-                    'to' => $toPhone,
-                    'type' => 'text',
-                    'text' => ['body' => $text],
-                ]);
+                ->post('/messages', $payload);
 
             if ($response->failed()) {
                 return ['ok' => false, 'error' => "Meta respondió {$response->status()}: " . $response->body()];
@@ -71,5 +82,14 @@ class CloudApiGateway implements WhatsAppGateway
     private function endpoint(string $phoneNumberId): string
     {
         return "{$this->graphUrl}/{$this->graphVersion}/{$phoneNumberId}";
+    }
+
+    /**
+     * ¿El destinatario es un número de teléfono (E.164) y no un BSUID?
+     * Teléfono: opcional "+" seguido solo de dígitos. BSUID: "PAIS.alfanumérico".
+     */
+    private function isPhoneNumber(string $recipient): bool
+    {
+        return (bool) preg_match('/^\+?\d{6,15}$/', $recipient);
     }
 }
