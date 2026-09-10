@@ -32,9 +32,15 @@ class AdminPanelProvider extends PanelProvider
             // controla el super-admin desde el panel de plataforma (/super).
             ->tenant(Tenant::class, slugAttribute: 'slug', ownershipRelationship: 'tenant')
             ->sidebarCollapsibleOnDesktop()
+            ->brandName('GasAI')
+            ->font('Inter')
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
                 fn (): string => \Illuminate\Support\Facades\Blade::render("@vite('resources/js/echo.js')"),
+            )
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::HEAD_END,
+                fn () => view('filament.brand-styles'),
             )
             ->colors([
                 'primary' => Color::Amber,

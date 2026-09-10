@@ -29,6 +29,11 @@ class SuperPanelProvider extends PanelProvider
             ->path('super')
             ->login()
             ->brandName('GasAI · Plataforma')
+            ->font('Inter')
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::HEAD_END,
+                fn () => view('filament.brand-styles'),
+            )
             ->colors([
                 'primary' => Color::Indigo,
             ])
