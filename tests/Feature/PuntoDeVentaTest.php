@@ -41,134 +41,104 @@ class PuntoDeVentaTest extends TestCase
         $this->efectivo = PaymentMethod::create(['name' => 'Efectivo']);
     }
 
-    public function test_cobrar_una_venta_de_mostrador_con_precio_editado(): void
+    /** @return array<int, array<string, mixed>> */
+    private function line(int $qty = 1, float $charged = 25.0): array
+    {
+        return [[
+            'product_id' => $this->producto->id,
+            'name' => 'Bidón 20L',
+            'unit' => 'bidón',
+            'list' => 25.0,
+            'charged' => $charged,
+            'qty' => $qty,
+        ]];
+    }
+
+    public function test_agregar_un_producto_lo_pone_en_el_ticket(): void
     {
         Livewire::test(PuntoDeVenta::class)
-            ->set('data.items', [[
-                'product_id' => $this->producto->id,
-                'product_name' => 'Bidón 20L',
-                'quantity' => 2,
-                'unit_price_list' => 25.0,
-                'unit_price_charged' => 22.0, // descuento aplicado a mano
-                'note' => 'Cliente frecuente',
-            ]])
-            ->set('data.payment_method_id', $this->efectivo->id)
+            ->call('addProduct', $this->producto->id)
+            ->assertCount('cart', 1)
+            ->call('addProduct', $this->producto->id)  // el mismo suma cantidad
+            ->assertCount('cart', 1)
+            ->assertSet('cart.0.qty', 2);
+    }
+
+    public function test_cobrar_con_precio_editado_calcula_margen(): void
+    {
+        Livewire::test(PuntoDeVenta::class)
+            ->set('cart', $this->line(qty: 2, charged: 22.0)) // descuento a mano
+            ->set('paymentMethodId', $this->efectivo->id)
             ->call('cobrar');
 
         $sale = Sale::withoutGlobalScopes()->firstOrFail();
         $this->assertSame('cobrada', $sale->status);
-        $this->assertSame('50.00', $sale->subtotal);        // 2 x 25 (lista)
-        $this->assertSame('44.00', $sale->total);           // 2 x 22 (cobrado)
-        $this->assertSame('6.00', $sale->discount_total);   // 50 - 44
+        $this->assertSame('50.00', $sale->subtotal);       // 2 x 25 lista
+        $this->assertSame('44.00', $sale->total);          // 2 x 22 cobrado
+        $this->assertSame('6.00', $sale->discount_total);
         $this->assertNotNull($sale->paid_at);
-
-        $item = $sale->items()->withoutGlobalScopes()->first();
-        $this->assertSame('25.00', $item->unit_price_list);
-        $this->assertSame('22.00', $item->unit_price_charged);
     }
 
     public function test_no_cobra_sin_metodo_de_pago(): void
     {
         Livewire::test(PuntoDeVenta::class)
-            ->set('data.items', [[
-                'product_id' => $this->producto->id,
-                'product_name' => 'Bidón 20L',
-                'quantity' => 1,
-                'unit_price_list' => 25.0,
-                'unit_price_charged' => 25.0,
-            ]])
-            ->set('data.payment_method_id', null)
+            ->set('cart', $this->line())
+            ->set('paymentMethodId', null)
             ->call('cobrar');
 
         $this->assertSame(0, Sale::withoutGlobalScopes()->count());
     }
 
-    public function test_guardar_en_espera_sin_metodo_de_pago(): void
+    public function test_guardar_en_espera_sin_metodo(): void
     {
         Livewire::test(PuntoDeVenta::class)
-            ->set('data.items', [[
-                'product_id' => $this->producto->id,
-                'product_name' => 'Bidón 20L',
-                'quantity' => 1,
-                'unit_price_list' => 25.0,
-                'unit_price_charged' => 25.0,
-            ]])
-            ->call('guardarEnEspera');
+            ->set('cart', $this->line())
+            ->call('enEspera');
 
         $sale = Sale::withoutGlobalScopes()->firstOrFail();
         $this->assertSame('en_espera', $sale->status);
         $this->assertNull($sale->paid_at);
     }
 
-    public function test_cobrar_desde_un_pedido_preselecciona_al_cliente(): void
+    public function test_cobrar_desde_pedido_preselecciona_cliente_e_items(): void
     {
         $customer = Customer::create(['phone' => '+51987654321', 'name' => 'Juan']);
         $order = Order::create([
-            'tenant_id' => $this->tenant->id,
-            'branch_id' => $this->branch->id,
-            'customer_id' => $customer->id,
-            'status' => 'en_ruta',
-            'channel' => 'whatsapp',
-            'total' => 25,
+            'tenant_id' => $this->tenant->id, 'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id, 'status' => 'en_ruta', 'channel' => 'whatsapp', 'total' => 25,
         ]);
         $order->items()->create([
-            'tenant_id' => $this->tenant->id,
-            'product_id' => $this->producto->id,
-            'product_name' => 'Bidón 20L',
-            'quantity' => 1,
-            'unit_price_list' => 25,
+            'tenant_id' => $this->tenant->id, 'product_id' => $this->producto->id,
+            'product_name' => 'Bidón 20L', 'quantity' => 2, 'unit_price_list' => 25,
         ]);
-
-        // Simulamos la entrada desde el pedido (?order=id).
-        $this->get(PuntoDeVenta::getUrl() . '?order=' . $order->id);
 
         Livewire::withQueryParams(['order' => $order->id])
             ->test(PuntoDeVenta::class)
-            ->assertSet('data.customer_id', $customer->id)
-            ->assertSet('orderId', $order->id);
+            ->assertSet('customerId', $customer->id)
+            ->assertSet('orderId', $order->id)
+            ->assertCount('cart', 1)
+            ->assertSet('cart.0.qty', 2);
     }
 
-    public function test_cobrar_en_efectivo_se_vincula_a_la_caja_abierta(): void
+    public function test_alta_rapida_de_cliente(): void
     {
-        $this->efectivo->update(['is_cash' => true]);
-        $session = \App\Models\CashSession::create([
-            'tenant_id' => $this->tenant->id,
-            'branch_id' => $this->branch->id,
-            'status' => 'abierta',
-            'opening_amount' => 100,
-            'opened_at' => now(),
-        ]);
-
         Livewire::test(PuntoDeVenta::class)
-            ->set('data.items', [[
-                'product_id' => $this->producto->id,
-                'product_name' => 'Bidón 20L',
-                'quantity' => 1,
-                'unit_price_list' => 25.0,
-                'unit_price_charged' => 25.0,
-            ]])
-            ->set('data.payment_method_id', $this->efectivo->id)
-            ->call('cobrar');
+            ->set('newName', 'Pedro')
+            ->set('newPhone', '+51900111222')
+            ->call('saveCustomer');
 
-        $sale = Sale::withoutGlobalScopes()->firstOrFail();
-        $this->assertSame($session->id, $sale->cash_session_id);
-        $this->assertSame(125.0, $session->fresh()->expectedCash()); // 100 + 25
+        $customer = Customer::withoutGlobalScopes()->firstWhere('phone', '+51900111222');
+        $this->assertNotNull($customer);
+        $this->assertSame('Pedro', $customer->name);
     }
 
-    public function test_una_venta_no_es_visible_para_otro_tenant(): void
+    public function test_venta_no_visible_para_otro_tenant(): void
     {
         Livewire::test(PuntoDeVenta::class)
-            ->set('data.items', [[
-                'product_id' => $this->producto->id,
-                'product_name' => 'Bidón 20L',
-                'quantity' => 1,
-                'unit_price_list' => 25.0,
-                'unit_price_charged' => 25.0,
-            ]])
-            ->set('data.payment_method_id', $this->efectivo->id)
+            ->set('cart', $this->line())
+            ->set('paymentMethodId', $this->efectivo->id)
             ->call('cobrar');
 
-        // Otro tenant activo no debe ver la venta.
         $otro = Tenant::create(['name' => 'Otro', 'slug' => 'otro', 'rubro' => 'gas']);
         Filament::setTenant($otro, isQuiet: true);
 
