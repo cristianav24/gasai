@@ -48,8 +48,10 @@ class WhatsAppInboundService
                 $contact = $value['contacts'][0] ?? [];
 
                 foreach ($value['messages'] ?? [] as $message) {
-                    if (($message['type'] ?? null) !== 'text') {
-                        continue; // MVP: solo texto.
+                    // Ignoramos eventos que no son mensajes de un cliente
+                    // (ej. reacciones, estados del sistema).
+                    if (blank($message['type'] ?? null)) {
+                        continue;
                     }
 
                     if ($this->store($account, $message, $contact)) {
@@ -60,6 +62,72 @@ class WhatsAppInboundService
         }
 
         return $nuevos;
+    }
+
+    /**
+     * Traduce cualquier tipo de mensaje entrante a una representación de texto
+     * que el agente y la bandeja pueden mostrar/usar.
+     *
+     * @param  array<string, mixed>  $message
+     */
+    private function extractContent(array $message): string
+    {
+        return match ($message['type'] ?? 'text') {
+            'text' => (string) ($message['text']['body'] ?? ''),
+
+            'location' => $this->locationContent($message['location'] ?? []),
+
+            'image' => '📷 [Imagen]' . $this->caption($message['image'] ?? []),
+            'video' => '🎥 [Video]' . $this->caption($message['video'] ?? []),
+            'audio' => '🎙️ [Audio]',
+            'document' => '📎 [Documento: ' . ($message['document']['filename'] ?? 'archivo') . ']',
+            'sticker' => '🩿 [Sticker]',
+            'contacts' => '👤 [Contacto compartido]',
+
+            // Botones/listas interactivas: usamos el texto que eligió el cliente.
+            'button' => (string) ($message['button']['text'] ?? '[Respuesta]'),
+            'interactive' => (string) (
+                $message['interactive']['button_reply']['title']
+                ?? $message['interactive']['list_reply']['title']
+                ?? '[Respuesta]'
+            ),
+
+            default => '[Mensaje de tipo ' . ($message['type'] ?? 'desconocido') . ']',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $location
+     */
+    private function locationContent(array $location): string
+    {
+        $lat = $location['latitude'] ?? null;
+        $lng = $location['longitude'] ?? null;
+
+        if ($lat === null || $lng === null) {
+            return '📍 [Ubicación compartida]';
+        }
+
+        $extra = '';
+        if (! blank($location['name'] ?? null)) {
+            $extra .= ' — ' . $location['name'];
+        }
+        if (! blank($location['address'] ?? null)) {
+            $extra .= ' (' . $location['address'] . ')';
+        }
+
+        // Incluimos las coordenadas para que el agente pueda usarlas al guardar
+        // la dirección de entrega, y un enlace para que el operador las vea.
+        return "📍 Ubicación compartida: {$lat},{$lng}{$extra}. "
+            . "Mapa: https://maps.google.com/?q={$lat},{$lng}";
+    }
+
+    /**
+     * @param  array<string, mixed>  $media
+     */
+    private function caption(array $media): string
+    {
+        return blank($media['caption'] ?? null) ? '' : ' ' . $media['caption'];
     }
 
     /**
@@ -76,7 +144,8 @@ class WhatsAppInboundService
     {
         $tenantId = $account->tenant_id;
         $waMessageId = $message['id'] ?? null;
-        $text = $message['text']['body'] ?? '';
+        // Representa el mensaje como texto según su tipo (texto, ubicación, imagen…).
+        $text = $this->extractContent($message);
 
         // Idempotencia: si ya vimos este wa_message_id, no lo reprocesamos.
         if ($waMessageId && Message::withoutGlobalScopes()->where('wa_message_id', $waMessageId)->exists()) {

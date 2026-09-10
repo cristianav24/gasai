@@ -153,6 +153,68 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertNull($conv->phone);                       // no vino número
     }
 
+    public function test_guarda_una_ubicacion_compartida_con_sus_coordenadas(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+        $tenant = $this->tenantConNumero('PHONE_1');
+
+        $payload = [
+            'object' => 'whatsapp_business_account',
+            'entry' => [[
+                'changes' => [[
+                    'field' => 'messages',
+                    'value' => [
+                        'metadata' => ['phone_number_id' => 'PHONE_1'],
+                        'contacts' => [['profile' => ['name' => 'Ana'], 'wa_id' => '51987000111']],
+                        'messages' => [[
+                            'from' => '51987000111',
+                            'id' => 'wamid.loc1',
+                            'type' => 'location',
+                            'location' => ['latitude' => -12.065, 'longitude' => -75.204, 'name' => 'Mi casa'],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ];
+
+        $this->postJson('/webhooks/whatsapp', $payload)->assertOk();
+
+        $msg = \App\Models\Message::withoutGlobalScopes()->firstWhere('wa_message_id', 'wamid.loc1');
+        $this->assertNotNull($msg);
+        $this->assertStringContainsString('-12.065,-75.204', $msg->content);
+        $this->assertStringContainsString('Ubicación', $msg->content);
+    }
+
+    public function test_una_imagen_se_registra_como_texto(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+        $this->tenantConNumero('PHONE_1');
+
+        $payload = [
+            'object' => 'whatsapp_business_account',
+            'entry' => [[
+                'changes' => [[
+                    'field' => 'messages',
+                    'value' => [
+                        'metadata' => ['phone_number_id' => 'PHONE_1'],
+                        'contacts' => [['profile' => ['name' => 'Ana'], 'wa_id' => '51987000111']],
+                        'messages' => [[
+                            'from' => '51987000111', 'id' => 'wamid.img1', 'type' => 'image',
+                            'image' => ['id' => 'media-1', 'caption' => 'mira mi bidón'],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ];
+
+        $this->postJson('/webhooks/whatsapp', $payload)->assertOk();
+
+        $msg = \App\Models\Message::withoutGlobalScopes()->firstWhere('wa_message_id', 'wamid.img1');
+        $this->assertNotNull($msg);
+        $this->assertStringContainsString('Imagen', $msg->content);
+        $this->assertStringContainsString('mira mi bidón', $msg->content);
+    }
+
     public function test_un_numero_no_conectado_se_ignora(): void
     {
         Queue::fake();

@@ -37,6 +37,8 @@ class SystemPromptBuilder
         - Nunca inventes disponibilidad, cobertura ni tiempos de entrega que no estén en la información dada.
         - Para agendar necesitas fecha Y franja horaria (mañana, tarde u hora exacta). No cierres un pedido sin ambas.
         - Respeta el horario de atención (ver abajo). Si el cliente pide "ahora"/"hoy" pero ya estás fuera del horario, NO agendes para hoy: dile con amabilidad que ya cerraron y ofrécele el siguiente horario disponible (por ejemplo mañana en la mañana).
+        - Si el cliente comparte su ubicación (verás "📍 Ubicación compartida: lat,lng"), agradécele y usa esas coordenadas (lat, lng) al guardar su dirección de entrega con guardar_direccion. Pídele igual una referencia del lugar.
+        - Si el cliente envía una imagen, audio o documento, no puedes verlos: dile con amabilidad que por ahora solo entiendes texto y pídele que te escriba lo que necesita.
         - Si no puedes resolver algo o el cliente lo pide, usa escalar_a_humano.
         - Responde en español, breve y claro, como en un chat de WhatsApp.
         TXT;
