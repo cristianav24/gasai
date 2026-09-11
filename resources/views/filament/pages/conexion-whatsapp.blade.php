@@ -52,13 +52,27 @@
                     version: '{{ $this->graphVersion() }}',
                 });
             };
+            function waEsShowBlocked() {
+                const status = document.getElementById('wa-es-status');
+                if (status) {
+                    status.style.color = '#dc2626';
+                    status.innerHTML = '⚠️ Tu navegador bloqueó Facebook (protección de rastreo o un bloqueador). '
+                        + 'Desactívala para <b>tandix.app</b> (ícono del escudo en la barra) o usa <b>Google Chrome</b>. '
+                        + 'También puedes usar la <b>conexión manual</b> de abajo.';
+                }
+            }
+
             (function (d, s, id) {
                 var js, fjs = d.getElementsByTagName(s)[0];
                 if (d.getElementById(id)) return;
                 js = d.createElement(s); js.id = id;
                 js.src = 'https://connect.facebook.net/en_US/sdk.js';
+                js.onerror = waEsShowBlocked;
                 fjs.parentNode.insertBefore(js, fjs);
             }(document, 'script', 'facebook-jssdk'));
+
+            // Si a los 5s el SDK no cargó, avisamos que está bloqueado.
+            setTimeout(function () { if (typeof FB === 'undefined') waEsShowBlocked(); }, 5000);
 
             // Captura del session info del Embedded Signup (WABA ID + phone number ID).
             window.__waEs = { phone_number_id: null, waba_id: null };
@@ -81,7 +95,7 @@
                 const status = document.getElementById('wa-es-status');
 
                 if (typeof FB === 'undefined') {
-                    status.textContent = 'Cargando Facebook… intenta de nuevo en unos segundos.';
+                    waEsShowBlocked();
                     return;
                 }
 
