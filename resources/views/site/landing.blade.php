@@ -173,7 +173,7 @@
                     <div class="chat-body">
                         <div class="bub pill">Hoy</div>
                         <div class="bub in">Hola, quiero 2 bidones de 20L para hoy en la tarde 🙏 <span class="t">3:04</span></div>
-                        <div class="bub out">¡Claro! 2 bidones de 20L = S/ 50. ¿Te los llevo a Jr. Gonzales Prada 753, El Tambo? Tenemos reparto de 2 a 6 pm. <span class="t">3:04</span></div>
+                        <div class="bub out">¡Claro! 2 bidones de 20L = S/ 50. ¿Te los llevo a Av. Los Incas 456, El Tambo? Tenemos reparto de 2 a 6 pm. <span class="t">3:04</span></div>
                         <div class="bub in">Sí, a esa dirección. Pago en efectivo 👍 <span class="t">3:05</span></div>
                         <div class="bub out">¡Perfecto! Pedido confirmado para hoy 2–6 pm. Tu repartidor va en camino 🚚 <span class="t">3:05</span></div>
                     </div>
