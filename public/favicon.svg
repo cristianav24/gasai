@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="GasAI">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#0b4a57"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
+  <path fill="#ffffff" d="M32 13c0 0 14.5 16 14.5 26.2A14.5 14.5 0 1 1 17.5 39.2C17.5 29 32 13 32 13z"/>
+  <circle cx="26.5" cy="35" r="3.4" fill="#22d3ee" opacity=".85"/>
+</svg>

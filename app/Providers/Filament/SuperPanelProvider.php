@@ -29,6 +29,7 @@ class SuperPanelProvider extends PanelProvider
             ->path('super')
             ->login()
             ->brandName('GasAI · Plataforma')
+            ->favicon(asset('favicon.svg'))
             ->font('Inter')
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,

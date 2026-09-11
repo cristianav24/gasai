@@ -6,6 +6,7 @@
     <title>GasAI · Cada chat de WhatsApp, convertido en un pedido</title>
     <meta name="description" content="GasAI atiende a tus clientes por WhatsApp, arma el pedido con tus precios y coordina la entrega. Panel de despacho, ventas, caja e inventario. Hecho para distribuidoras de agua y gas.">
     <meta name="robots" content="index,follow">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -48,8 +49,7 @@
         .nav { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--paper) 82%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
         .nav .row { display: flex; align-items: center; justify-content: space-between; height: 68px; }
         .brand { display: flex; align-items: center; gap: 11px; font-weight: 800; font-size: 1.28rem; }
-        .brand .mark { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-size: 1.15rem;
-            background: linear-gradient(150deg, var(--aqua-bright), var(--deep)); box-shadow: 0 6px 16px -6px rgba(8,145,166,.7); }
+        .brand .mark { width: 34px; height: 34px; border-radius: 10px; display: block; box-shadow: 0 6px 16px -6px rgba(8,145,166,.7); }
         .brand small { font-weight: 500; font-size: .74rem; color: var(--ink-soft); display: block; margin-top: -3px; }
 
         /* ---------- Hero ---------- */
@@ -144,7 +144,7 @@
 <body>
     <header class="nav">
         <div class="wrap row">
-            <span class="brand"><span class="mark">💧</span> <span>GasAI<small>por Myagendo</small></span></span>
+            <span class="brand"><img class="mark" src="/favicon.svg" alt="GasAI"> <span>GasAI<small>por Myagendo</small></span></span>
             <a class="btn solid" href="/admin">Ingresar</a>
         </div>
     </header>

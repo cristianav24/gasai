@@ -33,6 +33,9 @@ class AdminPanelProvider extends PanelProvider
             ->tenant(Tenant::class, slugAttribute: 'slug', ownershipRelationship: 'tenant')
             ->sidebarCollapsibleOnDesktop()
             ->brandName('GasAI')
+            ->brandLogo(fn () => view('filament.brand-logo'))
+            ->brandLogoHeight('2.1rem')
+            ->favicon(asset('favicon.svg'))
             ->font('Inter')
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
@@ -41,6 +44,10 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
                 fn () => view('filament.brand-styles'),
+            )
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn () => view('filament.login-brand'),
             )
             ->colors([
                 'primary' => Color::Amber,

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title') · GasAI</title>
     <meta name="robots" content="index,follow">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <style>
         :root { color-scheme: light; }
         * { box-sizing: border-box; }
@@ -42,7 +43,7 @@
 <body>
     <header class="top">
         <div class="inner">
-            <span style="font-size:1.6rem;">💧</span>
+            <img src="/favicon.svg" alt="GasAI" style="width:34px;height:34px;border-radius:9px;display:block;">
             <span class="brand">GasAI<small>tandix.app · plataforma de pedidos por WhatsApp</small></span>
         </div>
     </header>
