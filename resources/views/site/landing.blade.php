@@ -141,7 +141,7 @@
 
     <footer>
         <div class="wrap row">
-            <span>© {{ date('Y') }} GasAI · tandix.app</span>
+            <span>© {{ date('Y') }} GasAI · un producto de Myagendo · tandix.app</span>
             <span>
                 <a href="/privacidad">Privacidad</a> ·
                 <a href="/terminos">Términos</a> ·
