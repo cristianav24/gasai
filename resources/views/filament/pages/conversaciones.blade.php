@@ -46,6 +46,10 @@
             padding: .65rem .85rem; border: 0; border-bottom: 1px solid var(--border); background: transparent;
             color: var(--text); cursor: pointer; transition: background .15s ease; }
         .gx .conv:hover { background: var(--elev); }
+        .gx .conv-del { flex:0 0 auto; background:transparent; border:0; color:var(--muted); cursor:pointer; opacity:0;
+            padding:5px; border-radius:6px; transition:opacity .12s ease, color .12s ease, background .12s ease; }
+        .gx .conv:hover .conv-del { opacity:.65; }
+        .gx .conv-del:hover { color:#ef4444; opacity:1; background:rgba(239,68,68,.12); }
         .gx .conv.active { background: var(--elev); box-shadow: inset 3px 0 0 #f59e0b; }
         .gx .av { width: 42px; height: 42px; border-radius: 50%; flex: 0 0 42px; display: flex;
             align-items: center; justify-content: center; background: #fde68a; color: #92400e; font-weight:700; font-size:.85rem; }
@@ -106,7 +110,7 @@
             <div class="list">
                 @forelse ($this->conversations() as $c)
                     @php($preview = \Illuminate\Support\Str::limit($c->lastMessage?->content, 38))
-                    <button wire:click="select({{ $c->id }})" class="conv {{ $selectedId === $c->id ? 'active' : '' }}">
+                    <div wire:click="select({{ $c->id }})" class="conv {{ $selectedId === $c->id ? 'active' : '' }}" role="button" tabindex="0">
                         <span class="av">{{ \Illuminate\Support\Str::of($c->contactLabel())->substr(0,2)->upper() }}</span>
                         <span style="flex:1; min-width:0;">
                             <div class="conv-top">
@@ -118,7 +122,12 @@
                                 <span class="dot {{ $c->status === 'humano' ? 'human' : 'bot' }}" title="{{ $c->status === 'humano' ? 'Humano' : 'Bot' }}"></span>
                             </div>
                         </span>
-                    </button>
+                        <button type="button" class="conv-del" title="Eliminar conversación"
+                            wire:click.stop="deleteConversation({{ $c->id }})"
+                            wire:confirm="¿Eliminar esta conversación? Se ocultará de la bandeja (no se borra el historial).">
+                            <x-heroicon-o-trash style="width:15px;height:15px;" />
+                        </button>
+                    </div>
                 @empty
                     <div class="empty" style="padding:2.5rem 1rem;">
                         <x-heroicon-o-inbox />

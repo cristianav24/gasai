@@ -132,6 +132,22 @@ class ConversacionesTest extends TestCase
             ->assertSet('listCollapsed', false);
     }
 
+    public function test_eliminar_conversacion_la_oculta_de_la_bandeja(): void
+    {
+        $c = $this->conversation();
+
+        $comp = Livewire::test(Conversaciones::class);
+        $this->assertTrue($comp->instance()->conversations()->contains('id', $c->id));
+
+        $comp->call('deleteConversation', $c->id)
+            ->assertSet('selectedId', null);
+
+        $this->assertSoftDeleted('conversations', ['id' => $c->id]);
+        $this->assertFalse(
+            Livewire::test(Conversaciones::class)->instance()->conversations()->contains('id', $c->id)
+        );
+    }
+
     public function test_la_bandeja_solo_muestra_conversaciones_del_tenant(): void
     {
         $mia = $this->conversation();

@@ -32,7 +32,7 @@ class ProcessIncomingWhatsAppMessage implements ShouldQueue
 
     public function handle(AgentService $agent, WhatsAppGateway $gateway): void
     {
-        $conversation = Conversation::withoutGlobalScopes()->find($this->conversationId);
+        $conversation = Conversation::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)->find($this->conversationId);
 
         if (! $conversation) {
             return;

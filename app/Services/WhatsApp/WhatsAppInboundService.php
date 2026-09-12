@@ -186,7 +186,7 @@ class WhatsAppInboundService
         }
 
         // Una conversación por contacto (clave estable = wa_user_id).
-        $conversation = Conversation::withoutGlobalScopes()->firstOrCreate(
+        $conversation = Conversation::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)->firstOrCreate(
             ['tenant_id' => $tenantId, 'wa_user_id' => $waUserId, 'channel' => 'whatsapp'],
             ['status' => 'bot', 'customer_id' => $customer?->id, 'phone' => $phone],
         );

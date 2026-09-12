@@ -186,6 +186,27 @@ class Conversaciones extends Page
         $this->draft = '';
     }
 
+    /**
+     * Borrado lógico: la conversación se oculta de la bandeja (soft delete). El
+     * historial no se pierde; si el contacto vuelve a escribir, empieza una nueva.
+     */
+    public function deleteConversation(int $id): void
+    {
+        $conversation = Conversation::find($id);
+        if (! $conversation) {
+            return;
+        }
+
+        $conversation->delete();
+
+        if ($this->selectedId === $id) {
+            $this->selectedId = null;
+            $this->draft = '';
+        }
+
+        Notification::make()->success()->title('Conversación eliminada')->send();
+    }
+
     public function takeControl(): void
     {
         $conversation = $this->selected();
