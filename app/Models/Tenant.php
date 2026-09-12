@@ -10,6 +10,7 @@ class Tenant extends Model
 {
     protected $fillable = [
         'name', 'slug', 'rubro', 'tracks_containers', 'currency', 'timezone',
+        'geo_city', 'geo_region', 'geo_country', 'geo_viewbox',
         'business_hours', 'onboarding_step', 'onboarding_completed_at',
         'onboarding_checklist_dismissed',
     ];

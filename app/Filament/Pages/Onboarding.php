@@ -80,6 +80,8 @@ class Onboarding extends Page
                 ? ($tenant->business_hours['texto'] ?? '')
                 : (string) $tenant->business_hours,
             'timezone' => $tenant->timezone ?: 'America/Lima',
+            'geo_city' => $tenant->geo_city,
+            'geo_region' => $tenant->geo_region,
         ]);
     }
 
@@ -150,6 +152,17 @@ class Onboarding extends Page
                     ])
                     ->default('America/Lima')
                     ->required(),
+
+                TextInput::make('geo_city')
+                    ->label('Ciudad')
+                    ->placeholder('Ej: Huancayo')
+                    ->helperText('Ayuda al asistente a ubicar con exactitud las direcciones que te escriban.')
+                    ->maxLength(120),
+
+                TextInput::make('geo_region')
+                    ->label('Región / Departamento')
+                    ->placeholder('Ej: Junín')
+                    ->maxLength(120),
             ])
             ->afterValidation(function (Set $set): void {
                 $this->guardarNegocio();
@@ -286,6 +299,9 @@ class Onboarding extends Page
             'rubro' => $this->data['rubro'],
             'business_hours' => ['texto' => $this->data['business_hours_text'] ?? ''],
             'timezone' => $this->data['timezone'],
+            'geo_city' => $this->data['geo_city'] ?? null,
+            'geo_region' => $this->data['geo_region'] ?? null,
+            'geo_country' => filled($this->data['geo_city'] ?? null) ? ($this->tenant()->geo_country ?: 'Perú') : $this->tenant()->geo_country,
             'onboarding_step' => 'productos',
         ]);
     }

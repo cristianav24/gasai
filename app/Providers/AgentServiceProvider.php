@@ -66,6 +66,7 @@ class AgentServiceProvider extends ServiceProvider
                 $app->make(Tools\GuardarCliente::class),
                 $app->make(Tools\ListarDirecciones::class),
                 $app->make(Tools\GuardarDireccion::class),
+                $app->make(Tools\ValidarDireccion::class),
                 $app->make(Tools\ListarProductos::class),
                 $app->make(Tools\CalcularTotal::class),
                 $app->make(Tools\CrearPedido::class),

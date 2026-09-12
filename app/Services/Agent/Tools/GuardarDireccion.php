@@ -28,6 +28,8 @@ class GuardarDireccion implements Tool
             'properties' => [
                 'direccion' => ['type' => 'string', 'description' => 'Dirección exacta.'],
                 'referencia' => ['type' => 'string', 'description' => 'Referencia de ubicación (opcional).'],
+                'lat' => ['type' => 'number', 'description' => 'Latitud (de validar_direccion), si la tienes.'],
+                'lng' => ['type' => 'number', 'description' => 'Longitud (de validar_direccion), si la tienes.'],
                 'principal' => ['type' => 'boolean', 'description' => 'Marcar como dirección principal.'],
             ],
             'required' => ['direccion'],
@@ -54,6 +56,8 @@ class GuardarDireccion implements Tool
             'customer_id' => $customer->id,
             'address' => $direccion,
             'reference' => isset($arguments['referencia']) ? trim((string) $arguments['referencia']) : null,
+            'lat' => isset($arguments['lat']) ? (float) $arguments['lat'] : null,
+            'lng' => isset($arguments['lng']) ? (float) $arguments['lng'] : null,
             'is_primary' => $esPrincipal,
         ]);
 
