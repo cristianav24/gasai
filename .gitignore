@@ -27,3 +27,17 @@ yarn-error.log
 
 # Skills/local de Claude Code
 .claude/
+
+# Secretos de Firebase (NO subir): clave privada de administrador (FCM/Admin SDK)
+*-firebase-adminsdk-*.json
+google-services*.json
+
+# Capturas sueltas
+{*}.png
+image.png
+
+# Artefactos de build de la app movil
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/.gradle/
+*.apk
