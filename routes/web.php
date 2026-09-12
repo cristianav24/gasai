@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Route;
 // Página pública de inicio (marketing / describe el servicio).
 Route::get('/', fn () => view('site.landing'))->name('landing');
 
-// Puente de sesion para la app hibrida (WebView entra ya autenticado).
-Route::get('/app-login', [AppSessionController::class, 'login'])->name('app.login');
+// Puente de sesion para la app hibrida (WebView entra ya autenticado). NB: no usar prefijo /app (nginx lo desvia a otro servicio).
+Route::get('/sesion-movil', [AppSessionController::class, 'login'])->name('app.login');
 
 // Páginas legales públicas (requeridas por Meta para la app de WhatsApp).
 Route::get('/privacidad', [LegalController::class, 'privacy'])->name('legal.privacy');

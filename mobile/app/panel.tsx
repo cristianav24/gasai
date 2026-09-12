@@ -27,7 +27,7 @@ export default function Panel() {
       }
       const user = await getUser();
       setSlug(user?.negocioSlug ?? '');
-      setUri(`${API_BASE_URL}/app-login?token=${encodeURIComponent(token)}`);
+      setUri(`${API_BASE_URL}/sesion-movil?token=${encodeURIComponent(token)}`);
     })();
   }, []);
 

@@ -18,13 +18,13 @@ class AppSessionTest extends TestCase
         $tenant->users()->attach($user->id, ['role' => 'owner']);
         $plain = $user->createToken('app')->plainTextToken;
 
-        $this->get('/app-login?token=' . $plain)->assertRedirect('/admin');
+        $this->get('/sesion-movil?token=' . $plain)->assertRedirect('/admin');
         $this->assertAuthenticatedAs($user);
     }
 
     public function test_token_invalido_va_al_login(): void
     {
-        $this->get('/app-login?token=noexiste')->assertRedirect('/admin/login');
+        $this->get('/sesion-movil?token=noexiste')->assertRedirect('/admin/login');
         $this->assertGuest();
     }
 }
