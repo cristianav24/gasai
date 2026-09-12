@@ -211,6 +211,10 @@ class WhatsAppInboundService
         // Tiempo real: avisa a la bandeja del panel que llegó un mensaje.
         \App\Events\ConversationUpdated::dispatch($tenantId, $conversation->id);
 
+        // Push a la app: aviso de mensaje nuevo (chat nuevo o mensaje en curso).
+        app(\App\Services\Push\PushDispatcher::class)
+            ->notifyNewMessage($conversation, $text, $conversation->wasRecentlyCreated);
+
         // Debounce: agrupamos mensajes seguidos del mismo contacto.
         ProcessIncomingWhatsAppMessage::dispatch($conversation->id, $displayName)
             ->delay(now()->addSeconds((int) config('services.whatsapp.debounce_seconds', 5)));
