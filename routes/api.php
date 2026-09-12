@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ConversationApiController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\OrderApiController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders', [OrderApiController::class, 'index']);
     Route::get('/orders/{order}', [OrderApiController::class, 'show']);
     Route::post('/orders/{order}/delivered', [OrderApiController::class, 'markDelivered']);
+
+    Route::get('/conversations', [ConversationApiController::class, 'index']);
+    Route::get('/conversations/{conversation}', [ConversationApiController::class, 'show']);
+    Route::post('/conversations/{conversation}/reply', [ConversationApiController::class, 'reply']);
 
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
 });
