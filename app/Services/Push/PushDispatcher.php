@@ -60,6 +60,34 @@ class PushDispatcher
         );
     }
 
+    /** El bot derivó la conversación a un humano: avisa a dueños y operadores. */
+    public function notifyHandoff(Conversation $conversation, string $motivo = ''): void
+    {
+        $tenant = Tenant::find($conversation->tenant_id);
+        if (! $tenant) {
+            return;
+        }
+
+        $userIds = $tenant->users()->wherePivotIn('role', ['owner', 'operator'])->pluck('users.id')->all();
+        $tokens = $this->tokensFor($conversation->tenant_id, $userIds);
+        if (empty($tokens)) {
+            return;
+        }
+
+        $nombre = $conversation->contact_name ?: $conversation->phone ?: 'Cliente';
+        $motivo = trim($motivo);
+        $cuerpo = $motivo !== ''
+            ? 'El bot derivó el chat. Motivo: ' . Str::limit($motivo, 80)
+            : 'El bot derivó el chat y necesita que lo atienda una persona.';
+
+        $this->notifier->send(
+            $tokens,
+            "🙋 Atención requerida: {$nombre}",
+            $cuerpo,
+            ['conversation_id' => $conversation->id],
+        );
+    }
+
     /** Pedido asignado: avisa al repartidor. */
     public function notifyCourierAssigned(Order $order): void
     {

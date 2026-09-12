@@ -102,6 +102,34 @@ class PushNotificationTest extends TestCase
         $this->assertContains('ExponentPushToken[' . $courier->id . ']', $sent[0]['tokens']);
     }
 
+    public function test_escalar_a_humano_avisa_a_duenos_y_operadores(): void
+    {
+        $operator = User::factory()->create();
+        $this->tenant->users()->attach($operator->id, ['role' => 'operator']);
+        $courier = User::factory()->create();
+        $this->tenant->users()->attach($courier->id, ['role' => 'courier']);
+
+        $this->token($this->owner);
+        $this->token($operator);
+        $this->token($courier);
+
+        $conv = Conversation::create([
+            'tenant_id' => $this->tenant->id, 'channel' => 'whatsapp', 'status' => 'bot',
+            'contact_name' => 'Cristian', 'phone' => '+51999000111',
+        ]);
+
+        app(\App\Services\Push\PushDispatcher::class)
+            ->notifyHandoff($conv, 'El cliente pide hablar con una persona');
+
+        $sent = $this->pushNotifier()->sent;
+        $this->assertCount(1, $sent);
+        $this->assertStringContainsString('Atención requerida: Cristian', $sent[0]['title']);
+        $this->assertStringContainsString('El cliente pide hablar con una persona', $sent[0]['body']);
+        $this->assertContains('ExponentPushToken[' . $this->owner->id . ']', $sent[0]['tokens']);
+        $this->assertContains('ExponentPushToken[' . $operator->id . ']', $sent[0]['tokens']);
+        $this->assertNotContains('ExponentPushToken[' . $courier->id . ']', $sent[0]['tokens']);
+    }
+
     public function test_un_mensaje_nuevo_avisa_a_duenos_y_operadores_no_repartidores(): void
     {
         $operator = User::factory()->create();

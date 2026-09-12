@@ -3,6 +3,7 @@
 namespace App\Services\Agent\Tools;
 
 use App\Services\Agent\AgentContext;
+use App\Services\Push\PushDispatcher;
 
 /**
  * Marca la conversación para que la atienda un humano. La bandeja de handoff
@@ -36,10 +37,20 @@ class EscalarAHumano implements Tool
     {
         $context->conversation->update(['status' => 'humano']);
 
+        $motivo = (string) ($arguments['motivo'] ?? '');
+
+        // Avisa por push a dueños/operadores que el bot pide intervención humana.
+        try {
+            app(PushDispatcher::class)->notifyHandoff($context->conversation, $motivo);
+        } catch (\Throwable $e) {
+            // El push es un extra: nunca debe romper el flujo del agente.
+            report($e);
+        }
+
         return [
             'ok' => true,
             'mensaje' => 'La conversación fue derivada a un operador humano.',
-            'motivo' => (string) ($arguments['motivo'] ?? ''),
+            'motivo' => $motivo,
         ];
     }
 }
