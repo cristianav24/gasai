@@ -73,6 +73,7 @@ export async function login(email: string, password: string): Promise<SessionUse
     nombre: res.usuario.nombre,
     rol: res.usuario.rol,
     negocio: res.negocio.nombre,
+    negocioSlug: res.negocio.slug,
   };
 
   await saveSession(res.token, user);

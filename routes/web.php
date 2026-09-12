@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppSessionController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WhatsAppWebhookController;
@@ -7,6 +8,9 @@ use Illuminate\Support\Facades\Route;
 
 // Página pública de inicio (marketing / describe el servicio).
 Route::get('/', fn () => view('site.landing'))->name('landing');
+
+// Puente de sesion para la app hibrida (WebView entra ya autenticado).
+Route::get('/app-login', [AppSessionController::class, 'login'])->name('app.login');
 
 // Páginas legales públicas (requeridas por Meta para la app de WhatsApp).
 Route::get('/privacidad', [LegalController::class, 'privacy'])->name('legal.privacy');

@@ -8,6 +8,7 @@ export type SessionUser = {
   nombre: string;
   rol: string | null;
   negocio: string;
+  negocioSlug: string;
 };
 
 /** Guarda el token y los datos del usuario tras el login. */
