@@ -27,9 +27,9 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      const user = await login(email.trim(), password);
       await registerForPush(); // Registra el dispositivo para recibir avisos.
-      router.replace('/orders');
+      router.replace(user.rol === 'courier' ? '/orders' : '/conversations');
     } catch (e: any) {
       Alert.alert('No se pudo entrar', e?.message ?? 'Revisa tus credenciales.');
     } finally {
@@ -42,8 +42,8 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <Text style={styles.title}>GasAI Repartidor</Text>
-      <Text style={styles.subtitle}>Entra para ver tus pedidos del día.</Text>
+      <Text style={styles.title}>GasAI</Text>
+      <Text style={styles.subtitle}>Entra para atender tus pedidos y conversaciones.</Text>
 
       <TextInput
         style={styles.input}

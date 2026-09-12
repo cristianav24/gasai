@@ -104,4 +104,42 @@ export async function markDelivered(id: number): Promise<Order> {
   return res.data;
 }
 
+export type ConversationSummary = {
+  id: number;
+  contacto: string;
+  telefono: string | null;
+  estado: string;
+  ultimo_mensaje: string | null;
+  actualizado: string | null;
+};
+
+export type ChatMessage = { rol: 'user' | 'assistant'; contenido: string; hora: string | null };
+
+export type ConversationThread = {
+  id: number;
+  contacto: string;
+  estado: string;
+  mensajes: ChatMessage[];
+};
+
+export async function fetchConversations(): Promise<ConversationSummary[]> {
+  const res = await request<{ data: ConversationSummary[] }>('/conversations');
+  return res.data;
+}
+
+export async function fetchConversation(id: number): Promise<ConversationThread> {
+  const res = await request<{ data: ConversationThread }>(`/conversations/${id}`);
+  return res.data;
+}
+
+export async function replyConversation(
+  id: number,
+  mensaje: string,
+): Promise<{ ok: boolean; enviado: boolean; aviso: string | null }> {
+  return request(`/conversations/${id}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ mensaje }),
+  });
+}
+
 export { ApiError };

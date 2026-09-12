@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "GasAI Repartidor",
+    "name": "GasAI",
     "slug": "gasai-repartidor",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,9 +17,13 @@
     "android": {
       "package": "com.gasai.repartidor"
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-notifications"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications"
+    ],
     "extra": {
-      "apiBaseUrl": "http://192.168.1.100:8000"
+      "apiBaseUrl": "https://tandix.app"
     }
   }
 }
