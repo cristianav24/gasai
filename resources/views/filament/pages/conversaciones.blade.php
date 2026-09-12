@@ -255,6 +255,7 @@
                             {{ $a->address }}
                             @if ($a->is_primary)<span class="chipx">principal</span>@endif
                             @if ($a->reference)<div class="muted" style="font-size:.78rem;">Ref: {{ $a->reference }}</div>@endif
+                            @if ($a->mapUrl())<a href="{{ $a->mapUrl() }}" target="_blank" rel="noopener" style="font-size:.78rem;color:#0891a6;font-weight:600;"><x-heroicon-s-map style="width:12px;height:12px;display:inline;vertical-align:-1px;" /> Ver en mapa</a>@endif
                         </div>
                     @empty
                         <div class="muted val">Sin direcciones guardadas.</div>

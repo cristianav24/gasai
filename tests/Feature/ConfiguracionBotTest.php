@@ -45,6 +45,26 @@ class ConfiguracionBotTest extends TestCase
         $this->assertSame($tenant->id, $config->tenant_id);
     }
 
+    public function test_guarda_la_zona_del_negocio_en_el_tenant(): void
+    {
+        $tenant = Tenant::create(['name' => 'H2O', 'slug' => 'h2o', 'rubro' => 'agua']);
+        $this->actingInTenant($tenant);
+
+        Livewire::test(ConfiguracionBot::class)
+            ->fillForm([
+                'agent_name' => 'Aguita', 'tone' => 'amable', 'temperature' => 0.3,
+                'geo_city' => 'Huancayo', 'geo_region' => 'Junín', 'geo_country' => 'Perú',
+                'geo_viewbox' => '-75.30,-11.95,-75.14,-12.13',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $tenant->refresh();
+        $this->assertSame('Huancayo', $tenant->geo_city);
+        $this->assertSame('Junín', $tenant->geo_region);
+        $this->assertSame('-75.30,-11.95,-75.14,-12.13', $tenant->geo_viewbox);
+    }
+
     public function test_guardar_no_crea_un_segundo_registro_para_el_mismo_tenant(): void
     {
         $tenant = Tenant::create(['name' => 'H2O', 'slug' => 'h2o', 'rubro' => 'agua']);

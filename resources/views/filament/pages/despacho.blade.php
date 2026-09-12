@@ -182,6 +182,9 @@
                                         @if ($order->scheduled_time) · {{ \Illuminate\Support\Str::of($order->scheduled_time)->substr(0, 5) }} @endif
                                     </span>
                                     <span class="o-chip"><x-heroicon-o-cube />{{ $order->items->sum('quantity') }} ítem(s)</span>
+                                    @if ($order->address?->mapUrl())
+                                        <a class="o-chip" style="text-decoration:none;color:#0891a6;" href="{{ $order->address->mapUrl() }}" target="_blank" rel="noopener"><x-heroicon-o-map-pin />Mapa</a>
+                                    @endif
                                     @if ($order->channel === 'manual')
                                         <span class="o-chip manual"><x-heroicon-o-pencil-square />Manual</span>
                                     @elseif ($order->channel === 'whatsapp')

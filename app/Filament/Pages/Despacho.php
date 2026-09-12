@@ -55,7 +55,7 @@ class Despacho extends Page
     {
         $orders = Order::query()
             ->whereIn('status', Order::FLOW)
-            ->with(['customer', 'courier', 'items'])
+            ->with(['customer', 'courier', 'items', 'address'])
             ->orderBy('scheduled_date')
             ->orderBy('id')
             ->get();

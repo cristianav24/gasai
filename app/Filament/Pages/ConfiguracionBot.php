@@ -10,6 +10,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
@@ -38,13 +39,17 @@ class ConfiguracionBot extends Page
     {
         $record = $this->getRecord();
 
-        $this->form->fill($record->exists
+        $base = $record->exists
             ? $record->attributesToArray()
-            : [
-                'agent_name' => 'Asistente',
-                'tone' => 'amable',
-                'temperature' => 0.30,
-            ]);
+            : ['agent_name' => 'Asistente', 'tone' => 'amable', 'temperature' => 0.30];
+
+        $tenant = Filament::getTenant();
+        $this->form->fill($base + [
+            'geo_city' => $tenant->geo_city,
+            'geo_region' => $tenant->geo_region,
+            'geo_country' => $tenant->geo_country ?: 'Perú',
+            'geo_viewbox' => $tenant->geo_viewbox,
+        ]);
     }
 
     protected function getRecord(): BotConfig
@@ -95,6 +100,19 @@ class ConfiguracionBot extends Page
                     ->helperText('Reglas puntuales para el agente (ej. "no prometas horas exactas de entrega").')
                     ->rows(4)
                     ->columnSpanFull(),
+
+                Section::make('Zona del negocio')
+                    ->description('Ayuda al asistente a ubicar con exactitud las direcciones que te escriben tus clientes.')
+                    ->columns(2)
+                    ->columnSpanFull()
+                    ->schema([
+                        TextInput::make('geo_city')->label('Ciudad')->placeholder('Ej: Huancayo')->maxLength(120)->dehydrated(false),
+                        TextInput::make('geo_region')->label('Región / Departamento')->placeholder('Ej: Junín')->maxLength(120)->dehydrated(false),
+                        TextInput::make('geo_country')->label('País')->default('Perú')->maxLength(120)->dehydrated(false),
+                        TextInput::make('geo_viewbox')->label('Recuadro (avanzado)')
+                            ->helperText('Opcional: "lon1,lat1,lon2,lat2" para acotar la búsqueda a tu ciudad.')
+                            ->maxLength(120)->dehydrated(false),
+                    ]),
             ])
             ->statePath('data')
             ->model($this->getRecord());
@@ -103,6 +121,15 @@ class ConfiguracionBot extends Page
     public function save(): void
     {
         $data = $this->form->getState();
+
+        // La zona del negocio vive en el tenant, no en la config del bot.
+        $state = $this->data;
+        Filament::getTenant()->update([
+            'geo_city' => filled($state['geo_city'] ?? null) ? trim($state['geo_city']) : null,
+            'geo_region' => filled($state['geo_region'] ?? null) ? trim($state['geo_region']) : null,
+            'geo_country' => filled($state['geo_country'] ?? null) ? trim($state['geo_country']) : null,
+            'geo_viewbox' => filled($state['geo_viewbox'] ?? null) ? trim($state['geo_viewbox']) : null,
+        ]);
 
         $record = $this->getRecord();
         $record->fill($data);

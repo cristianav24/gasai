@@ -25,4 +25,14 @@ class Address extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    /** Link a Google Maps con las coordenadas, para el repartidor. Null si no hay GPS. */
+    public function mapUrl(): ?string
+    {
+        if ($this->lat === null || $this->lng === null) {
+            return null;
+        }
+
+        return 'https://maps.google.com/?q=' . $this->lat . ',' . $this->lng;
+    }
 }

@@ -144,7 +144,7 @@ class Conversaciones extends Page
 
         $addresses = $customer->addresses()
             ->orderByDesc('is_primary')->orderByDesc('created_at')
-            ->get(['address', 'reference', 'is_primary']);
+            ->get(['address', 'reference', 'is_primary', 'lat', 'lng']);
 
         $envases = \App\Models\ContainerBalance::withoutGlobalScopes()
             ->with('containerType')
