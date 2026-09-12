@@ -2,16 +2,16 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
-    /**
-     * A basic test example.
-     */
-    public function test_the_root_redirects_to_the_admin_panel(): void
+    /** La raíz muestra la landing pública de GasAI. */
+    public function test_the_root_shows_the_landing(): void
     {
-        $this->get('/')->assertRedirect('/admin');
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('GasAI')
+            ->assertSee('WhatsApp');
     }
 }

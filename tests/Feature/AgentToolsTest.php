@@ -12,6 +12,7 @@ use App\Services\Agent\AgentContext;
 use App\Services\Agent\OrderPricing;
 use App\Services\Agent\Tools\BuscarCliente;
 use App\Services\Agent\Tools\CrearPedido;
+use App\Services\Agent\Tools\ListarDirecciones;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -138,16 +139,55 @@ class AgentToolsTest extends TestCase
         $this->assertSame('12.50', $item->unit_price_list, 'El precio del pedido no debe cambiar retroactivamente');
     }
 
-    public function test_buscar_cliente_no_encuentra_clientes_de_otro_tenant(): void
+    public function test_buscar_cliente_devuelve_al_cliente_de_la_conversacion(): void
     {
-        $otro = Tenant::create(['name' => 'Otro', 'slug' => 'otro', 'rubro' => 'gas']);
-        Customer::withoutGlobalScopes()->create([
-            'tenant_id' => $otro->id, 'phone' => '+51900000000', 'name' => 'Ajeno',
+        // Sin cliente en la conversación: no lo reconoce.
+        $this->assertFalse(app(BuscarCliente::class)->handle([], $this->context())['encontrado']);
+
+        // Con cliente identificado (por el servidor): lo reconoce.
+        $ana = Customer::create(['phone' => '+51987654321', 'name' => 'Ana']);
+        $res = app(BuscarCliente::class)->handle([], $this->context($ana));
+
+        $this->assertTrue($res['encontrado']);
+        $this->assertSame('Ana', $res['nombre']);
+    }
+
+    /**
+     * Regresión: una conversación de un contacto no registrado (p.ej. número
+     * oculto) NUNCA debe actuar sobre otro cliente, aunque el modelo intente
+     * colar un cliente_id. El pedido y las direcciones son de ESTA conversación.
+     */
+    public function test_las_herramientas_no_actuan_sobre_otro_cliente(): void
+    {
+        // Cristian, ya registrado, con su dirección.
+        $cristian = Customer::create(['phone' => '+51941649964', 'name' => 'Cristian', 'wa_user_id' => 'PE.CRIS']);
+        $cristian->addresses()->create(['tenant_id' => $this->tenant->id, 'address' => 'Jr Gonzales Prada 753']);
+
+        // Conversación de Javier: número oculto, sin cliente identificado.
+        $conv = Conversation::create([
+            'tenant_id' => $this->tenant->id, 'channel' => 'whatsapp', 'status' => 'bot',
+            'wa_user_id' => 'PE.JAVIER', 'contact_name' => 'Javier',
         ]);
+        $context = new AgentContext($this->tenant, $conv, null);
 
-        // Contexto del tenant H2O buscando el teléfono del cliente del otro tenant.
-        $res = app(BuscarCliente::class)->handle(['telefono' => '+51900000000'], $this->context());
+        // listar_direcciones NO devuelve la dirección de Cristian.
+        $dirs = app(ListarDirecciones::class)->handle([], $context);
+        $this->assertSame([], $dirs['direcciones']);
 
-        $this->assertFalse($res['encontrado']);
+        // crear_pedido ignora el cliente_id de Cristian y crea un cliente atado a Javier.
+        $bidon = Product::create(['name' => 'Bidón 20L', 'price' => 25, 'unit' => 'bidón']);
+        $res = app(CrearPedido::class)->handle([
+            'cliente_id' => $cristian->id, // intento del modelo (debe ignorarse)
+            'items' => [['producto_id' => $bidon->id, 'cantidad' => 1]],
+            'fecha_programada' => '2026-09-12', 'franja' => 'manana',
+        ], $context);
+
+        $this->assertTrue($res['ok']);
+        $order = Order::withoutGlobalScopes()->latest('id')->firstOrFail();
+        $this->assertNotSame($cristian->id, $order->customer_id);
+
+        $nuevo = Customer::withoutGlobalScopes()->find($order->customer_id);
+        $this->assertSame('PE.JAVIER', $nuevo->wa_user_id);
+        $this->assertSame($conv->fresh()->customer_id, $order->customer_id);
     }
 }

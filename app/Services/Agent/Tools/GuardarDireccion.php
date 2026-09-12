@@ -3,11 +3,10 @@
 namespace App\Services\Agent\Tools;
 
 use App\Models\Address;
-use App\Models\Customer;
 use App\Services\Agent\AgentContext;
 
 /**
- * Guarda una dirección de entrega para un cliente.
+ * Guarda una dirección de entrega para el cliente de ESTA conversación.
  */
 class GuardarDireccion implements Tool
 {
@@ -18,7 +17,8 @@ class GuardarDireccion implements Tool
 
     public function description(): string
     {
-        return 'Guarda una dirección de entrega para un cliente, con su referencia de ubicación.';
+        return 'Guarda una dirección de entrega del cliente que te escribe, con su referencia. '
+            . 'No recibe cliente: siempre es el cliente de esta conversación.';
     }
 
     public function parameters(): array
@@ -26,26 +26,25 @@ class GuardarDireccion implements Tool
         return [
             'type' => 'object',
             'properties' => [
-                'cliente_id' => ['type' => 'integer', 'description' => 'ID del cliente.'],
                 'direccion' => ['type' => 'string', 'description' => 'Dirección exacta.'],
                 'referencia' => ['type' => 'string', 'description' => 'Referencia de ubicación (opcional).'],
                 'principal' => ['type' => 'boolean', 'description' => 'Marcar como dirección principal.'],
             ],
-            'required' => ['cliente_id', 'direccion'],
+            'required' => ['direccion'],
         ];
     }
 
     public function handle(array $arguments, AgentContext $context): array
     {
-        $customer = Customer::find($arguments['cliente_id'] ?? 0);
-
-        if (! $customer) {
-            return ['ok' => false, 'error' => 'Cliente no encontrado.'];
+        $direccion = trim((string) ($arguments['direccion'] ?? ''));
+        if ($direccion === '') {
+            return ['ok' => false, 'error' => 'Falta la dirección.'];
         }
+
+        $customer = $context->ensureCustomer();
 
         $esPrincipal = (bool) ($arguments['principal'] ?? false);
 
-        // Si esta será la principal, desmarcamos las demás del cliente.
         if ($esPrincipal) {
             $customer->addresses()->update(['is_primary' => false]);
         }
@@ -53,7 +52,7 @@ class GuardarDireccion implements Tool
         $address = Address::create([
             'tenant_id' => $context->tenantId(),
             'customer_id' => $customer->id,
-            'address' => trim((string) $arguments['direccion']),
+            'address' => $direccion,
             'reference' => isset($arguments['referencia']) ? trim((string) $arguments['referencia']) : null,
             'is_primary' => $esPrincipal,
         ]);

@@ -2,11 +2,10 @@
 
 namespace App\Services\Agent\Tools;
 
-use App\Models\Customer;
 use App\Services\Agent\AgentContext;
 
 /**
- * Lista las direcciones guardadas de un cliente, para no volver a pedírselas.
+ * Lista las direcciones guardadas del cliente de ESTA conversación.
  */
 class ListarDirecciones implements Tool
 {
@@ -17,27 +16,24 @@ class ListarDirecciones implements Tool
 
     public function description(): string
     {
-        return 'Devuelve las direcciones guardadas de un cliente. Úsala para ofrecerle sus direcciones '
-            . 'anteriores en vez de pedírselas de nuevo.';
+        return 'Devuelve las direcciones guardadas del cliente que te escribe, para ofrecérselas '
+            . 'en vez de pedírselas de nuevo. No recibe datos: usa al cliente de esta conversación.';
     }
 
     public function parameters(): array
     {
         return [
             'type' => 'object',
-            'properties' => [
-                'cliente_id' => ['type' => 'integer', 'description' => 'ID del cliente.'],
-            ],
-            'required' => ['cliente_id'],
+            'properties' => new \stdClass(),
         ];
     }
 
     public function handle(array $arguments, AgentContext $context): array
     {
-        $customer = Customer::find($arguments['cliente_id'] ?? 0);
+        $customer = $context->customer;
 
         if (! $customer) {
-            return ['direcciones' => [], 'error' => 'Cliente no encontrado.'];
+            return ['direcciones' => []];
         }
 
         $direcciones = $customer->addresses()

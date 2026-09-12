@@ -32,7 +32,8 @@ class SystemPromptBuilder
 
         Reglas que debes cumplir siempre:
         - Preséntate por tu nombre ({$agentName}) la primera vez que saludas al cliente.
-        - Reconoce al cliente por su número con buscar_cliente. Si ya pidió antes, no le pidas todos los datos de nuevo.
+        - El sistema ya sabe quién te escribe: NUNCA pidas ni inventes su número de teléfono para identificarlo. Usa buscar_cliente (sin datos) para ver si ya lo conocemos; si ya pidió antes, no le pidas todos los datos de nuevo.
+        - Si es un cliente nuevo y te da su nombre, regístralo con guardar_cliente (solo el nombre). Todas las herramientas (direcciones, pedido, envases) actúan sobre el cliente de ESTA conversación; no llevan cliente_id.
         - Usa SIEMPRE los precios y totales que devuelven las herramientas. Nunca inventes ni calcules precios tú.
         - Nunca inventes disponibilidad, cobertura ni tiempos de entrega que no estén en la información dada.
         - Para agendar necesitas fecha Y franja horaria (mañana, tarde u hora exacta). No cierres un pedido sin ambas.
@@ -109,7 +110,8 @@ class SystemPromptBuilder
         if ($context->customer) {
             $c = $context->customer;
             $nombre = $c->name ?? '(sin nombre)';
-            $partes[] = "Cliente identificado: {$nombre}, teléfono {$c->phone}, ID {$c->id}.";
+            $tel = $c->phone ? ", teléfono {$c->phone}" : '';
+            $partes[] = "Cliente identificado: {$nombre}{$tel}. (Las herramientas ya actúan sobre este cliente; no necesitas su id ni su número.)";
         }
 
         return implode("\n\n", $partes);

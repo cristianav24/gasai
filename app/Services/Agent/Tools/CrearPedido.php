@@ -38,7 +38,6 @@ class CrearPedido implements Tool
         return [
             'type' => 'object',
             'properties' => [
-                'cliente_id' => ['type' => 'integer'],
                 'direccion_id' => ['type' => 'integer'],
                 'items' => [
                     'type' => 'array',
@@ -67,7 +66,7 @@ class CrearPedido implements Tool
                 ],
                 'notas' => ['type' => 'string'],
             ],
-            'required' => ['cliente_id', 'items', 'fecha_programada', 'franja'],
+            'required' => ['items', 'fecha_programada', 'franja'],
         ];
     }
 
@@ -115,12 +114,21 @@ class CrearPedido implements Tool
             return ['ok' => false, 'error' => 'El negocio no tiene una sucursal configurada.'];
         }
 
-        $order = DB::transaction(function () use ($arguments, $context, $calc, $fecha, $franja, $hora, $zonaId, $branch): Order {
+        // Cliente y dirección SIEMPRE del cliente de esta conversación (nunca del modelo).
+        $customer = $context->ensureCustomer();
+        $notas = isset($arguments['notas']) ? trim((string) $arguments['notas']) : null;
+
+        $direccionId = isset($arguments['direccion_id']) ? (int) $arguments['direccion_id'] : null;
+        if ($direccionId && ! $customer->addresses()->whereKey($direccionId)->exists()) {
+            $direccionId = null; // La dirección no es de este cliente: se ignora.
+        }
+
+        $order = DB::transaction(function () use ($context, $calc, $fecha, $franja, $hora, $zonaId, $branch, $customer, $direccionId, $notas): Order {
             $order = Order::create([
                 'tenant_id' => $context->tenantId(),
                 'branch_id' => $branch->id,
-                'customer_id' => $arguments['cliente_id'] ?? null,
-                'address_id' => $arguments['direccion_id'] ?? null,
+                'customer_id' => $customer->id,
+                'address_id' => $direccionId,
                 'delivery_zone_id' => $zonaId,
                 'subtotal' => $calc['subtotal'],
                 'delivery_fee' => $calc['costo_envio'],
@@ -130,7 +138,7 @@ class CrearPedido implements Tool
                 'scheduled_date' => $fecha,
                 'scheduled_slot' => $franja,
                 'scheduled_time' => $hora,
-                'notes' => $arguments['notas'] ?? null,
+                'notes' => $notas,
             ]);
 
             foreach ($calc['lineas'] as $linea) {

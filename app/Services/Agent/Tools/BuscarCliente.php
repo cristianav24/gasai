@@ -2,12 +2,11 @@
 
 namespace App\Services\Agent\Tools;
 
-use App\Models\Customer;
 use App\Services\Agent\AgentContext;
 
 /**
- * Reconoce al cliente por su teléfono. Si existe, lo deja identificado en el
- * contexto para el resto del turno.
+ * Dice si ya conocemos al cliente que está escribiendo. La identidad sale del
+ * servidor (la conversación), NUNCA de un teléfono que mande el modelo.
  */
 class BuscarCliente implements Tool
 {
@@ -18,44 +17,28 @@ class BuscarCliente implements Tool
 
     public function description(): string
     {
-        return 'Busca un cliente por su número de teléfono para reconocerlo y recuperar sus datos. '
-            . 'Úsala al inicio de la conversación.';
+        return 'Indica si ya conocemos al cliente que te está escribiendo (por su identidad de WhatsApp). '
+            . 'No recibe datos: el sistema ya sabe quién escribe. Úsala al inicio para saber si es cliente nuevo o recurrente.';
     }
 
     public function parameters(): array
     {
         return [
             'type' => 'object',
-            'properties' => [
-                'telefono' => [
-                    'type' => 'string',
-                    'description' => 'Teléfono del cliente en formato internacional (E.164), ej. +51987654321.',
-                ],
-            ],
-            'required' => ['telefono'],
+            'properties' => new \stdClass(),
         ];
     }
 
     public function handle(array $arguments, AgentContext $context): array
     {
-        $phone = trim((string) ($arguments['telefono'] ?? ''));
-
-        if ($phone === '') {
-            return ['encontrado' => false, 'error' => 'Falta el teléfono.'];
-        }
-
-        // El tenant sale del contexto del servidor, nunca del argumento.
-        $customer = Customer::where('phone', $phone)->first();
+        $customer = $context->customer;
 
         if (! $customer) {
             return ['encontrado' => false];
         }
 
-        $context->setCustomer($customer);
-
         return [
             'encontrado' => true,
-            'cliente_id' => $customer->id,
             'nombre' => $customer->name,
             'telefono' => $customer->phone,
         ];

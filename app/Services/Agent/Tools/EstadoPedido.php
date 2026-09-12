@@ -33,7 +33,12 @@ class EstadoPedido implements Tool
 
     public function handle(array $arguments, AgentContext $context): array
     {
-        $order = Order::find($arguments['pedido_id'] ?? 0);
+        // Solo puede consultar pedidos del cliente de ESTA conversación.
+        $customer = $context->customer;
+
+        $order = $customer
+            ? Order::where('customer_id', $customer->id)->find($arguments['pedido_id'] ?? 0)
+            : null;
 
         if (! $order) {
             return ['encontrado' => false];
