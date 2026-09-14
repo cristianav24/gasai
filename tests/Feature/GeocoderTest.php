@@ -62,6 +62,29 @@ class GeocoderTest extends TestCase
         $this->assertSame([], $res);
     }
 
+    public function test_search_reintenta_sin_numero_de_casa_cuando_el_primero_falla(): void
+    {
+        // Nominatim no tiene numeración en Huancayo: el 1er intento (con "753")
+        // sale vacío y el 2do (sin número) encuentra la calle.
+        Http::fake([
+            'nominatim.openstreetmap.org/search*' => Http::sequence()
+                ->push([], 200)
+                ->push([[
+                    'display_name' => 'Jirón Manuel Gonzales Prada, El Tambo, Huancayo, Junín, Perú',
+                    'lat' => '-12.0570', 'lon' => '-75.2322',
+                    'address' => ['road' => 'Jirón Manuel Gonzales Prada', 'city' => 'El Tambo'],
+                ]], 200),
+        ]);
+
+        $res = $this->geocoder()->search(
+            'jr gonzales prada 753', 'El Tambo', 'Huancayo', 'Junín', 'Perú', '-75.30,-11.95,-75.14,-12.13',
+        );
+
+        $this->assertCount(1, $res);
+        $this->assertSame('El Tambo', $res[0]['distrito']);
+        $this->assertEqualsWithDelta(-12.0570, $res[0]['lat'], 0.001);
+    }
+
     public function test_tool_validar_direccion_usa_la_zona_del_negocio(): void
     {
         $this->fakeNominatim();

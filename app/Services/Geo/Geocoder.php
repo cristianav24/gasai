@@ -71,11 +71,47 @@ class Geocoder
             return [];
         }
 
-        $q = implode(', ', array_filter(
-            [$direccion, $distrito, $city, $region, $country],
-            fn ($v): bool => filled($v),
-        ));
+        // Nominatim tiene datos pobres de numeración y nombres oficiales en Perú:
+        // el número de casa, la región con tilde o el prefijo (jr/av) suelen tumbar
+        // la búsqueda a cero. Por eso probamos de lo más específico a lo más simple
+        // y nos quedamos con el primer intento que devuelva algo.
+        $calle = trim($direccion);
+        $sinNumero = $this->stripHouseNumber($calle);
+        $core = $this->stripStreetPrefix($sinNumero);
 
+        $intentos = [];
+        foreach ([
+            [$calle, $distrito, $city, $region, $country],
+            [$sinNumero, $distrito, $city, $region, $country],
+            [$sinNumero, $distrito, $city, $country],
+            [$core, $distrito, $city, $country],
+            [$core, $distrito, $city],
+            [$core, $city, $country],
+        ] as $partes) {
+            $q = implode(', ', array_filter($partes, fn ($v): bool => filled($v)));
+            if ($q !== '' && ! in_array($q, $intentos, true)) {
+                $intentos[] = $q;
+            }
+        }
+
+        foreach ($intentos as $q) {
+            $out = $this->run($q, $distrito, $direccion, $viewbox);
+            if (! empty($out)) {
+                return $out;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Una consulta a Nominatim con filtro por distrito. El viewbox se usa solo
+     * como sesgo (sin bounded), para no excluir resultados válidos cercanos.
+     *
+     * @return array<int, array{direccion: string, lat: ?float, lng: ?float, distrito: ?string}>
+     */
+    private function run(string $q, ?string $distrito, string $original, ?string $viewbox): array
+    {
         try {
             $params = [
                 'q' => $q,
@@ -85,8 +121,7 @@ class Geocoder
                 'limit' => 10,
             ];
             if (filled($viewbox)) {
-                $params['viewbox'] = $viewbox;
-                $params['bounded'] = 1;
+                $params['viewbox'] = $viewbox; // sesgo, no límite duro
             }
 
             $response = $this->client()->get("{$this->baseUrl}/search", $params);
@@ -124,7 +159,7 @@ class Geocoder
                 }
 
                 $out[] = [
-                    'direccion' => (string) ($x['display_name'] ?? $direccion),
+                    'direccion' => (string) ($x['display_name'] ?? $original),
                     'lat' => isset($x['lat']) ? (float) $x['lat'] : null,
                     'lng' => isset($x['lon']) ? (float) $x['lon'] : null,
                     'distrito' => $a['city'] ?? $a['town'] ?? $a['village'] ?? $a['suburb'] ?? $a['municipality'] ?? null,
@@ -137,5 +172,23 @@ class Geocoder
 
             return [];
         }
+    }
+
+    /** Quita un número de casa al final (ej. "Gonzales Prada 753" -> "Gonzales Prada"). */
+    private function stripHouseNumber(string $s): string
+    {
+        return trim((string) preg_replace('/[\s,]+(n[°ºo]\.?\s*|nro\.?\s*|#\s*)?\d{1,5}[a-z]?\s*$/iu', '', $s));
+    }
+
+    /** Quita el prefijo de tipo de vía (jr, av, calle, pasaje…) que suele confundir a OSM. */
+    private function stripStreetPrefix(string $s): string
+    {
+        $out = (string) preg_replace(
+            '/^\s*(jr|jiron|jirón|av|avda|avenida|calle|ca|pasaje|psje|psj|pje|prol|prolongacion|prolongación|urb|urbanizacion|urbanización|mz|manzana)\.?\s+/iu',
+            '',
+            $s,
+        );
+
+        return trim($out) !== '' ? trim($out) : $s;
     }
 }
