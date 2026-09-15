@@ -19,7 +19,7 @@ use Throwable;
 class AgentService
 {
     /** Máximo de rondas de tool calls por turno. */
-    private const MAX_ITERATIONS = 6;
+    private const MAX_ITERATIONS = 10;
 
     /** @var array<int, array{tool: string, arguments: array<string, mixed>, result: array<string, mixed>}> */
     private array $toolTrace = [];
@@ -104,8 +104,40 @@ class AgentService
             }
         }
 
-        // Se pasó del máximo de iteraciones: escalamos.
-        return $this->escalate($context, 'Se alcanzó el máximo de pasos del agente.');
+        // Se pasó del máximo de iteraciones. NO escalamos a un humano: el trabajo
+        // (crear/agendar el pedido) ya se hizo en las tool calls; solo falta cerrar.
+        // Forzamos una última respuesta SIN herramientas para que el bot cierre bien.
+        return $this->finalAnswerWithoutTools($context, $messages, $temperature);
+    }
+
+    /**
+     * Última llamada al modelo sin herramientas: lo obliga a devolver texto para
+     * cerrar el turno con naturalidad (en vez de escalar a un humano por haberse
+     * pasado del máximo de rondas de tool calls).
+     */
+    private function finalAnswerWithoutTools(AgentContext $context, array $messages, float $temperature): string
+    {
+        $messages[] = [
+            'role' => 'system',
+            'content' => 'Cierra la conversación con un mensaje breve y claro para el cliente '
+                . '(confirma el pedido si ya lo creaste). No llames más herramientas.',
+        ];
+
+        try {
+            $response = $this->llm->chat($messages, [], ['temperature' => $temperature]);
+            $text = trim((string) $response->content);
+        } catch (Throwable $e) {
+            report($e);
+            $text = '';
+        }
+
+        if ($text === '') {
+            $text = '¡Listo! Tu pedido quedó registrado. Cualquier cosa, escríbeme por aquí. 😊';
+        }
+
+        $this->persist($context, 'assistant', $text);
+
+        return $text;
     }
 
     /**

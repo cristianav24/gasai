@@ -102,7 +102,7 @@ class AgentServiceTest extends TestCase
         $this->assertSame('manana', $order->scheduled_slot);
     }
 
-    public function test_el_agente_escala_a_humano_al_pasarse_del_maximo_de_iteraciones(): void
+    public function test_al_pasarse_del_maximo_de_iteraciones_cierra_sin_escalar(): void
     {
         // Cola vacía: el fake siempre pide una herramienta, forzando el tope.
         $fake = new FakeLlmProvider();
@@ -112,7 +112,9 @@ class AgentServiceTest extends TestCase
 
         $reply = $agent->handle($context, 'dame vueltas');
 
-        $this->assertStringContainsString('persona del equipo', $reply);
-        $this->assertSame('humano', $context->conversation->fresh()->status);
+        // Ya NO deriva a un humano: cierra con un mensaje y la conversación sigue con el bot.
+        $this->assertSame('bot', $context->conversation->fresh()->status);
+        $this->assertStringNotContainsString('persona del equipo', $reply);
+        $this->assertNotEmpty($reply);
     }
 }
