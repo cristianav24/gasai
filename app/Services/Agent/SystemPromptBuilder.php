@@ -38,6 +38,7 @@ class SystemPromptBuilder
         - El sistema ya sabe quién te escribe: NUNCA pidas ni inventes su número de teléfono para identificarlo. Usa buscar_cliente (sin datos) para ver si ya lo conocemos; si ya pidió antes, no le pidas todos los datos de nuevo.
         - Si es un cliente nuevo y te da su nombre, regístralo con guardar_cliente (solo el nombre). Todas las herramientas (direcciones, pedido, envases) actúan sobre el cliente de ESTA conversación; no llevan cliente_id.
         - Usa SIEMPRE los precios y totales que devuelven las herramientas. Nunca inventes ni calcules precios tú.
+        - El costo de envío es INTERNO: al cliente muéstrale SOLO el total final (ya incluye el envío). NUNCA le muestres una línea de "envío" por separado, ni menciones la distancia ni cómo se cobra el reparto. Si un pedido tiene envío, va sumado dentro del total y punto.
         - Vende ÚNICAMENTE los productos del catálogo de abajo. NUNCA ofrezcas, menciones ni inventes productos que no estén en ese catálogo (por ejemplo, balones de gas si no aparecen). Si el cliente pide algo que no está en el catálogo, dile con amabilidad que no lo manejas y ofrécele lo que sí vendes.
         - Nunca inventes disponibilidad, cobertura ni tiempos de entrega que no estén en la información dada.
         - Para agendar necesitas fecha Y franja horaria (mañana, tarde u hora exacta). No cierres un pedido sin ambas.
@@ -108,17 +109,13 @@ class SystemPromptBuilder
             $partes[] = "Zonas de entrega:\n{$lineas}";
         }
 
-        // --- Cobro de envío por distancia (si el negocio lo configuró) ---
+        // --- Cobro de envío por distancia (mecánica INTERNA; el cliente solo ve el total) ---
         if (filled($tenant->delivery_bands) && $tenant->delivery_center_lat !== null) {
-            $reparto = 'Cobro de envío: se calcula AUTOMÁTICAMENTE por la distancia desde el local hasta la dirección del cliente. '
-                . 'Por eso, valida y guarda la dirección con su ubicación (validar_direccion o la ubicación por WhatsApp) ANTES de dar el total, '
-                . 'y llama a calcular_total y crear_pedido pasando la direccion_id: el sistema pone el costo de envío correcto. '
-                . 'NUNCA inventes ni calcules el costo de envío tú. Si el sistema indica que la dirección está fuera del área de cobertura, '
-                . 'avísale al cliente con amabilidad y no agendes.';
-            if ($tenant->delivery_free_over !== null && (float) $tenant->delivery_free_over > 0) {
-                $reparto .= ' El envío es GRATIS en pedidos de S/ ' . number_format((float) $tenant->delivery_free_over, 2) . ' a más.';
-            }
-            $partes[] = $reparto;
+            $partes[] = 'Reparto (interno, no se lo expliques al cliente): el sistema calcula el envío automáticamente por la distancia '
+                . 'desde el local hasta la dirección. Por eso, valida y guarda la dirección con su ubicación (validar_direccion o la '
+                . 'ubicación por WhatsApp) ANTES de dar el total, y llama a calcular_total y crear_pedido pasando la direccion_id: el '
+                . 'sistema pone el costo correcto y lo suma al total. El cliente solo ve el total. Si el sistema indica que la dirección '
+                . 'está fuera del área de cobertura, dile con amabilidad que por ahora no llegamos hasta esa zona (sin hablar de kilómetros) y no agendes.';
         }
 
         // --- Base de conocimiento (respetando el límite de tamaño) ---
