@@ -12,6 +12,7 @@ class Tenant extends Model
         'name', 'slug', 'rubro', 'tracks_containers', 'currency', 'timezone',
         'geo_city', 'geo_region', 'geo_country', 'geo_viewbox',
         'order_number_start', 'order_number_padding',
+        'delivery_center_lat', 'delivery_center_lng', 'delivery_bands', 'delivery_free_over',
         'business_hours', 'onboarding_step', 'onboarding_completed_at',
         'onboarding_checklist_dismissed',
     ];
@@ -23,6 +24,10 @@ class Tenant extends Model
         'tracks_containers' => 'boolean',
         'order_number_start' => 'integer',
         'order_number_padding' => 'integer',
+        'delivery_center_lat' => 'decimal:7',
+        'delivery_center_lng' => 'decimal:7',
+        'delivery_bands' => 'array',
+        'delivery_free_over' => 'decimal:2',
     ];
 
     public function onboardingCompleted(): bool

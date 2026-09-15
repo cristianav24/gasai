@@ -108,6 +108,19 @@ class SystemPromptBuilder
             $partes[] = "Zonas de entrega:\n{$lineas}";
         }
 
+        // --- Cobro de envío por distancia (si el negocio lo configuró) ---
+        if (filled($tenant->delivery_bands) && $tenant->delivery_center_lat !== null) {
+            $reparto = 'Cobro de envío: se calcula AUTOMÁTICAMENTE por la distancia desde el local hasta la dirección del cliente. '
+                . 'Por eso, valida y guarda la dirección con su ubicación (validar_direccion o la ubicación por WhatsApp) ANTES de dar el total, '
+                . 'y llama a calcular_total y crear_pedido pasando la direccion_id: el sistema pone el costo de envío correcto. '
+                . 'NUNCA inventes ni calcules el costo de envío tú. Si el sistema indica que la dirección está fuera del área de cobertura, '
+                . 'avísale al cliente con amabilidad y no agendes.';
+            if ($tenant->delivery_free_over !== null && (float) $tenant->delivery_free_over > 0) {
+                $reparto .= ' El envío es GRATIS en pedidos de S/ ' . number_format((float) $tenant->delivery_free_over, 2) . ' a más.';
+            }
+            $partes[] = $reparto;
+        }
+
         // --- Base de conocimiento (respetando el límite de tamaño) ---
         $conocimiento = $this->knowledgeBlock($tenant);
         if ($conocimiento !== '') {

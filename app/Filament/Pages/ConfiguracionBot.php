@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\BotConfig;
 use BackedEnum;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -51,6 +52,13 @@ class ConfiguracionBot extends Page
             'geo_viewbox' => $tenant->geo_viewbox,
             'order_number_start' => $tenant->order_number_start ?? 1,
             'order_number_padding' => $tenant->order_number_padding ?? 5,
+            'delivery_center' => ($tenant->delivery_center_lat !== null && $tenant->delivery_center_lng !== null)
+                ? $tenant->delivery_center_lat . ', ' . $tenant->delivery_center_lng
+                : null,
+            'delivery_free_over' => $tenant->delivery_free_over,
+            'delivery_bands' => collect($tenant->delivery_bands ?? [])
+                ->map(fn ($b): array => ['to_km' => $b['to_km'] ?? null, 'fee' => $b['fee'] ?? null])
+                ->all(),
         ]);
     }
 
@@ -128,6 +136,27 @@ class ConfiguracionBot extends Page
                             ->helperText('Ej: 8 muestra "00001000". Deja 5 para "01000".')
                             ->numeric()->minValue(1)->maxValue(12)->default(5)->dehydrated(false),
                     ]),
+
+                Section::make('Reparto (envío por distancia)')
+                    ->description('Cobra el envío según la distancia desde tu local. La primera banda (S/ 0) es el radio gratis; más allá de la última banda, la dirección queda "fuera de cobertura". Si no configuras esto, se usan las zonas de entrega.')
+                    ->columns(2)
+                    ->columnSpanFull()
+                    ->schema([
+                        TextInput::make('delivery_center')->label('Centro de reparto (tu local)')
+                            ->helperText('Pega "lat, lng" o un enlace de Google Maps de tu local.')
+                            ->placeholder('-12.0650, -75.2049')
+                            ->columnSpanFull()->dehydrated(false),
+                        TextInput::make('delivery_free_over')->label('Envío gratis desde (S/)')
+                            ->helperText('Pedidos de este monto a más no pagan envío. Vacío = desactivado.')
+                            ->numeric()->minValue(0)->dehydrated(false),
+                        Repeater::make('delivery_bands')->label('Bandas de distancia')
+                            ->helperText('De menor a mayor. Ej: hasta 2 km → S/ 0 (gratis), hasta 4 km → S/ 2, hasta 6 km → S/ 3.')
+                            ->columnSpanFull()->dehydrated(false)->defaultItems(0)->addActionLabel('Agregar banda')
+                            ->schema([
+                                TextInput::make('to_km')->label('Hasta (km)')->numeric()->minValue(0.1)->required(),
+                                TextInput::make('fee')->label('Costo (S/)')->numeric()->minValue(0)->required(),
+                            ])->columns(2),
+                    ]),
             ])
             ->statePath('data')
             ->model($this->getRecord());
@@ -146,6 +175,12 @@ class ConfiguracionBot extends Page
             'geo_viewbox' => filled($state['geo_viewbox'] ?? null) ? trim($state['geo_viewbox']) : null,
             'order_number_start' => max(1, (int) ($state['order_number_start'] ?? 1)),
             'order_number_padding' => min(12, max(1, (int) ($state['order_number_padding'] ?? 5))),
+            'delivery_center_lat' => $this->parseCenter($state['delivery_center'] ?? null)[0],
+            'delivery_center_lng' => $this->parseCenter($state['delivery_center'] ?? null)[1],
+            'delivery_bands' => $this->cleanBands($state['delivery_bands'] ?? []),
+            'delivery_free_over' => (isset($state['delivery_free_over']) && $state['delivery_free_over'] !== '' && $state['delivery_free_over'] !== null)
+                ? round((float) $state['delivery_free_over'], 2)
+                : null,
         ]);
 
         $record = $this->getRecord();
@@ -156,5 +191,43 @@ class ConfiguracionBot extends Page
             ->success()
             ->title('Configuración guardada')
             ->send();
+    }
+
+    /**
+     * Extrae lat/lng de un texto: "lat, lng" o un enlace de Google Maps.
+     *
+     * @return array{0: ?float, 1: ?float}
+     */
+    private function parseCenter(?string $s): array
+    {
+        if (! filled($s)) {
+            return [null, null];
+        }
+
+        preg_match_all('/-?\d+\.\d+/', $s, $m);
+        $nums = $m[0] ?? [];
+
+        if (count($nums) >= 2) {
+            return [(float) $nums[0], (float) $nums[1]];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * Normaliza las bandas: a números, sin vacías, ordenadas por distancia.
+     *
+     * @return array<int, array{to_km: float, fee: float}>|null
+     */
+    private function cleanBands(array $bands): ?array
+    {
+        $clean = collect($bands)
+            ->map(fn ($b): array => ['to_km' => (float) ($b['to_km'] ?? 0), 'fee' => round((float) ($b['fee'] ?? 0), 2)])
+            ->filter(fn (array $b): bool => $b['to_km'] > 0)
+            ->sortBy('to_km')
+            ->values()
+            ->all();
+
+        return empty($clean) ? null : $clean;
     }
 }

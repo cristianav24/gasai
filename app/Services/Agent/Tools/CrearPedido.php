@@ -92,11 +92,24 @@ class CrearPedido implements Tool
             }
         }
 
-        // --- Cálculo de precios desde el código ---
         $items = $arguments['items'] ?? [];
         $zonaId = isset($arguments['zona_id']) ? (int) $arguments['zona_id'] : null;
 
-        $calc = $this->pricing->calcular($items, $zonaId);
+        // Cliente y dirección SIEMPRE del cliente de esta conversación (nunca del modelo).
+        $customer = $context->ensureCustomer();
+        $notas = isset($arguments['notas']) ? trim((string) $arguments['notas']) : null;
+
+        $direccionId = isset($arguments['direccion_id']) ? (int) $arguments['direccion_id'] : null;
+        $direccion = $direccionId ? $customer->addresses()->whereKey($direccionId)->first() : null;
+        if (! $direccion) {
+            $direccionId = null; // La dirección no es de este cliente: se ignora.
+        }
+
+        // --- Cálculo de precios (envío por distancia si la dirección tiene ubicación) ---
+        $lat = $direccion?->lat !== null ? (float) $direccion->lat : null;
+        $lng = $direccion?->lng !== null ? (float) $direccion->lng : null;
+
+        $calc = $this->pricing->calcular($items, $zonaId, $context->tenant, $lat, $lng);
 
         if (! empty($calc['errores'])) {
             return ['ok' => false, 'error' => implode(' ', $calc['errores'])];
@@ -112,15 +125,6 @@ class CrearPedido implements Tool
 
         if (! $branch) {
             return ['ok' => false, 'error' => 'El negocio no tiene una sucursal configurada.'];
-        }
-
-        // Cliente y dirección SIEMPRE del cliente de esta conversación (nunca del modelo).
-        $customer = $context->ensureCustomer();
-        $notas = isset($arguments['notas']) ? trim((string) $arguments['notas']) : null;
-
-        $direccionId = isset($arguments['direccion_id']) ? (int) $arguments['direccion_id'] : null;
-        if ($direccionId && ! $customer->addresses()->whereKey($direccionId)->exists()) {
-            $direccionId = null; // La dirección no es de este cliente: se ignora.
         }
 
         $order = DB::transaction(function () use ($context, $calc, $fecha, $franja, $hora, $zonaId, $branch, $customer, $direccionId, $notas): Order {

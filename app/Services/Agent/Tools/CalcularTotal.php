@@ -41,9 +41,13 @@ class CalcularTotal implements Tool
                         'required' => ['producto_id', 'cantidad'],
                     ],
                 ],
+                'direccion_id' => [
+                    'type' => 'integer',
+                    'description' => 'ID de la dirección del cliente. Con ella se calcula el envío por distancia. Recomendado.',
+                ],
                 'zona_id' => [
                     'type' => 'integer',
-                    'description' => 'ID de la zona de entrega para incluir el costo de envío (opcional).',
+                    'description' => 'Zona de entrega (respaldo si no hay dirección con ubicación).',
                 ],
             ],
             'required' => ['items'],
@@ -55,6 +59,24 @@ class CalcularTotal implements Tool
         $items = $arguments['items'] ?? [];
         $zonaId = isset($arguments['zona_id']) ? (int) $arguments['zona_id'] : null;
 
-        return $this->pricing->calcular($items, $zonaId);
+        // Coordenadas de la dirección del cliente para el cobro por distancia.
+        [$lat, $lng] = $this->coordsFor($context, isset($arguments['direccion_id']) ? (int) $arguments['direccion_id'] : null);
+
+        return $this->pricing->calcular($items, $zonaId, $context->tenant, $lat, $lng);
+    }
+
+    /** @return array{0: ?float, 1: ?float} */
+    private function coordsFor(AgentContext $context, ?int $direccionId): array
+    {
+        if (! $direccionId || ! $context->customer) {
+            return [null, null];
+        }
+
+        $addr = $context->customer->addresses()->whereKey($direccionId)->first();
+        if ($addr && $addr->lat !== null && $addr->lng !== null) {
+            return [(float) $addr->lat, (float) $addr->lng];
+        }
+
+        return [null, null];
     }
 }

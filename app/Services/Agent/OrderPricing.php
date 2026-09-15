@@ -4,6 +4,8 @@ namespace App\Services\Agent;
 
 use App\Models\DeliveryZone;
 use App\Models\Product;
+use App\Models\Tenant;
+use App\Services\Delivery\DeliveryPricing;
 
 /**
  * Cálculo de precios y totales. Regla dura del proyecto: los precios y totales
@@ -12,6 +14,8 @@ use App\Models\Product;
  */
 class OrderPricing
 {
+    public function __construct(private DeliveryPricing $delivery) {}
+
     /**
      * @param  array<int, array{producto_id?: int, cantidad?: int}>  $items
      * @return array{
@@ -22,8 +26,13 @@ class OrderPricing
      *   errores: array<int, string>
      * }
      */
-    public function calcular(array $items, ?int $zonaId = null): array
-    {
+    public function calcular(
+        array $items,
+        ?int $zonaId = null,
+        ?Tenant $tenant = null,
+        ?float $lat = null,
+        ?float $lng = null,
+    ): array {
         $lineas = [];
         $errores = [];
         $subtotal = 0.0;
@@ -58,8 +67,33 @@ class OrderPricing
             ];
         }
 
+        $subtotal = round($subtotal, 2);
+
         $costoEnvio = 0.0;
-        if ($zonaId !== null) {
+        $distanciaKm = null;
+        $cubierto = true;
+        $gratisPorMonto = false;
+        $usoDistancia = false;
+
+        // Cobro por distancia (si el negocio lo configuró y hay coordenadas).
+        if ($tenant !== null) {
+            $q = $this->delivery->quote($tenant, $lat, $lng, $subtotal);
+            if ($q['metodo'] === 'distancia') {
+                $usoDistancia = true;
+                $distanciaKm = $q['distancia_km'];
+                $cubierto = $q['cubierto'];
+                $gratisPorMonto = $q['gratis_por_monto'];
+
+                if (! $cubierto) {
+                    $errores[] = 'La dirección está fuera del área de cobertura de reparto.';
+                } else {
+                    $costoEnvio = (float) $q['fee'];
+                }
+            }
+        }
+
+        // Respaldo: tarifa fija por zona (clientes sin ubicación o sin config de distancia).
+        if (! $usoDistancia && $zonaId !== null) {
             $zona = DeliveryZone::where('active', true)->find($zonaId);
             if ($zona) {
                 $costoEnvio = (float) $zona->delivery_fee;
@@ -68,7 +102,6 @@ class OrderPricing
             }
         }
 
-        $subtotal = round($subtotal, 2);
         $total = round($subtotal + $costoEnvio, 2);
 
         return [
@@ -76,6 +109,9 @@ class OrderPricing
             'subtotal' => $subtotal,
             'costo_envio' => $costoEnvio,
             'total' => $total,
+            'distancia_km' => $distanciaKm,
+            'cubierto' => $cubierto,
+            'gratis_por_monto' => $gratisPorMonto,
             'errores' => $errores,
         ];
     }
