@@ -138,6 +138,22 @@
         .gb .er-name { font-weight: 700; font-size: .9rem; }
         .gb .er-sub { font-size: .74rem; }
         .gb .edit-row .fld.price { width: 104px; flex: 0 0 104px; text-align: right; }
+
+        /* Modal de entrega (para quién / para dónde) */
+        .gb .dv-block { background: var(--chip); border-radius: .75rem; padding: .75rem .85rem; }
+        .gb .dv-label { display: flex; align-items: center; gap: .35rem; font-size: .72rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: .03em; color: var(--muted); margin-bottom: .4rem; }
+        .gb .dv-label svg { width: 14px; height: 14px; }
+        .gb .dv-name { font-size: 1rem; font-weight: 700; color: var(--text); }
+        .gb .dv-addr { font-size: .92rem; color: var(--text); line-height: 1.4; white-space: pre-line; }
+        .gb .dv-ref { font-size: .82rem; color: var(--muted); margin-top: .25rem; }
+        .gb .dv-zone { font-size: .8rem; color: var(--muted); margin-top: .4rem; }
+        .gb .dv-muted { font-size: .85rem; color: var(--muted); }
+        .gb .dv-link { display: inline-flex; align-items: center; gap: .3rem; margin-top: .35rem; font-size: .85rem;
+            font-weight: 700; color: #16a34a; text-decoration: none; }
+        .gb .dv-link:hover { text-decoration: underline; }
+        .gb .dv-link svg { width: 14px; height: 14px; }
+        .gb .dv-map { width: 100%; height: 220px; border: 1px solid var(--border); border-radius: .75rem; margin-top: .2rem; }
     </style>
 
     <div class="gb">
@@ -213,6 +229,9 @@
 
                                 {{-- Secundarias --}}
                                 <div class="o-sub">
+                                    <button class="o-mini" wire:click="openDelivery({{ $order->id }})" title="Ver para quién y para dónde">
+                                        <x-heroicon-o-map-pin />Entrega
+                                    </button>
                                     @if ($order->nextStatus() && $status !== 'entregado')
                                         <button class="o-mini" wire:click="advance({{ $order->id }})"
                                             style="color: {{ $accents[$order->nextStatus()] ?? '#64748b' }};"
@@ -387,6 +406,76 @@
                         <button type="button" class="btn-primary" wire:click="saveEdit">
                             <x-heroicon-s-check style="width:16px;height:16px;" /> Guardar precios
                         </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- Modal: detalle de entrega (para quién y para dónde) --}}
+        @if ($showDelivery)
+            @php($o = $this->deliveryOrder())
+            <div class="ov" wire:key="delivery-modal">
+                <div class="modal" style="max-width:460px;">
+                    <div class="m-head">
+                        <span class="m-title">Entrega · #{{ $o?->id }}</span>
+                        <button class="m-close" wire:click="closeDelivery"><x-heroicon-o-x-mark /></button>
+                    </div>
+
+                    <div class="m-body">
+                        @if ($o)
+                            {{-- Para quién --}}
+                            <div class="dv-block">
+                                <div class="dv-label"><x-heroicon-o-user />Para quién</div>
+                                <div class="dv-name">{{ $o->customer?->displayName() ?? 'Sin cliente registrado' }}</div>
+                                @php($phone = $o->customer?->phone)
+                                @if ($phone)
+                                    <a class="dv-link" href="https://wa.me/{{ preg_replace('/\D/', '', $phone) }}" target="_blank" rel="noopener">
+                                        <x-heroicon-o-chat-bubble-oval-left />{{ $phone }}
+                                    </a>
+                                @endif
+                            </div>
+
+                            {{-- Para dónde --}}
+                            @php($addr = $o->address)
+                            <div class="dv-block">
+                                <div class="dv-label"><x-heroicon-o-map-pin />Para dónde</div>
+                                @if ($addr)
+                                    <div class="dv-addr">{{ $addr->address }}</div>
+                                    @if ($addr->reference)
+                                        <div class="dv-ref">Referencia: {{ $addr->reference }}</div>
+                                    @endif
+                                @elseif (filled($o->notes))
+                                    <div class="dv-addr">{{ $o->notes }}</div>
+                                @else
+                                    <div class="dv-muted">Sin dirección registrada en este pedido.</div>
+                                @endif
+                                @if ($o->deliveryZone)
+                                    <div class="dv-zone">Zona de entrega: {{ $o->deliveryZone->name }}</div>
+                                @endif
+                            </div>
+
+                            {{-- Ubicación en el mapa --}}
+                            @if ($addr?->mapUrl())
+                                @php($lat = (float) $addr->lat)
+                                @php($lng = (float) $addr->lng)
+                                @php($d = 0.004)
+                                <a class="o-deliver alt" style="text-decoration:none;" href="{{ $addr->mapUrl() }}" target="_blank" rel="noopener">
+                                    <x-heroicon-o-map /> Abrir ubicación en Google Maps
+                                </a>
+                                <iframe class="dv-map" loading="lazy" referrerpolicy="no-referrer"
+                                    src="https://www.openstreetmap.org/export/embed.html?bbox={{ $lng - $d }},{{ $lat - $d }},{{ $lng + $d }},{{ $lat + $d }}&layer=mapnik&marker={{ $lat }},{{ $lng }}"></iframe>
+                            @else
+                                <div class="dv-block dv-muted">
+                                    Este pedido no tiene coordenadas GPS. Para ubicación exacta, pídele al cliente que comparta su ubicación por WhatsApp.
+                                </div>
+                            @endif
+                        @else
+                            <p class="dv-muted">No se encontró el pedido.</p>
+                        @endif
+                    </div>
+
+                    <div class="m-foot">
+                        <button type="button" class="btn-ghost" wire:click="closeDelivery">Cerrar</button>
                     </div>
                 </div>
             </div>

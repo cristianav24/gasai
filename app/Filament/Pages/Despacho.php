@@ -403,6 +403,33 @@ class Despacho extends Page
         return true;
     }
 
+    // ---------- Ver detalle de entrega (para quién y para dónde) ----------
+
+    public bool $showDelivery = false;
+
+    public ?int $deliveryOrderId = null;
+
+    public function openDelivery(int $orderId): void
+    {
+        $this->deliveryOrderId = $orderId;
+        $this->showDelivery = true;
+    }
+
+    public function closeDelivery(): void
+    {
+        $this->showDelivery = false;
+    }
+
+    /** Pedido cargado para el modal de entrega (cliente, dirección, zona). */
+    public function deliveryOrder(): ?Order
+    {
+        if (! $this->deliveryOrderId) {
+            return null;
+        }
+
+        return Order::with(['customer', 'address', 'deliveryZone', 'items'])->find($this->deliveryOrderId);
+    }
+
     // ---------- Editar precios de un pedido existente ----------
 
     public bool $showEdit = false;

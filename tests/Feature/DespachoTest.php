@@ -219,4 +219,27 @@ class DespachoTest extends TestCase
         $this->assertTrue($ids->contains($miPedido->id));
         $this->assertFalse($ids->contains($ajeno->id));
     }
+
+    public function test_detalle_de_entrega_muestra_cliente_direccion_y_mapa(): void
+    {
+        $customer = Customer::create([
+            'tenant_id' => $this->tenant->id, 'name' => 'Cristian', 'phone' => '+51941649964',
+        ]);
+        $address = $customer->addresses()->create([
+            'tenant_id' => $this->tenant->id,
+            'address' => 'Jirón Gonzales Prada 753, El Tambo',
+            'reference' => 'Portón azul',
+            'lat' => -12.0570, 'lng' => -75.2322,
+        ]);
+        $order = $this->makeOrder('pendiente');
+        $order->update(['customer_id' => $customer->id, 'address_id' => $address->id]);
+
+        Livewire::test(Despacho::class)
+            ->call('openDelivery', $order->id)
+            ->assertSet('showDelivery', true)
+            ->assertSee('Cristian')
+            ->assertSee('Jirón Gonzales Prada 753, El Tambo')
+            ->assertSee('Portón azul')
+            ->assertSee('maps.google.com/?q=-12.0570000,-75.2322000');
+    }
 }
