@@ -29,7 +29,7 @@ class PushDispatcher
 
         $this->notifier->send(
             $tokens,
-            'Nuevo pedido #' . $order->id,
+            'Nuevo pedido #' . $order->displayNumber(),
             'Total S/ ' . number_format((float) $order->total, 2) . '. Revisa el despacho.',
             ['pedido_id' => $order->id],
         );
@@ -99,7 +99,7 @@ class PushDispatcher
 
         $this->notifier->send(
             $tokens,
-            'Nuevo reparto #' . $order->id,
+            'Nuevo reparto #' . $order->displayNumber(),
             'Se te asignó un pedido. Ábrelo para ver los detalles.',
             ['pedido_id' => $order->id],
         );

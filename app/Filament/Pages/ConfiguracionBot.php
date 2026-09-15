@@ -49,6 +49,8 @@ class ConfiguracionBot extends Page
             'geo_region' => $tenant->geo_region,
             'geo_country' => $tenant->geo_country ?: 'Perú',
             'geo_viewbox' => $tenant->geo_viewbox,
+            'order_number_start' => $tenant->order_number_start ?? 1,
+            'order_number_padding' => $tenant->order_number_padding ?? 5,
         ]);
     }
 
@@ -113,6 +115,19 @@ class ConfiguracionBot extends Page
                             ->helperText('Opcional: "lon1,lat1,lon2,lat2" para acotar la búsqueda a tu ciudad.')
                             ->maxLength(120)->dehydrated(false),
                     ]),
+
+                Section::make('Numeración de pedidos')
+                    ->description('Desde qué número empiezan tus pedidos y con cuántos dígitos se muestran. Solo afecta a los pedidos nuevos.')
+                    ->columns(2)
+                    ->columnSpanFull()
+                    ->schema([
+                        TextInput::make('order_number_start')->label('Número inicial')
+                            ->helperText('Ej: 1000 para que el primer pedido sea el 1000.')
+                            ->numeric()->minValue(1)->default(1)->dehydrated(false),
+                        TextInput::make('order_number_padding')->label('Dígitos (relleno con ceros)')
+                            ->helperText('Ej: 8 muestra "00001000". Deja 5 para "01000".')
+                            ->numeric()->minValue(1)->maxValue(12)->default(5)->dehydrated(false),
+                    ]),
             ])
             ->statePath('data')
             ->model($this->getRecord());
@@ -129,6 +144,8 @@ class ConfiguracionBot extends Page
             'geo_region' => filled($state['geo_region'] ?? null) ? trim($state['geo_region']) : null,
             'geo_country' => filled($state['geo_country'] ?? null) ? trim($state['geo_country']) : null,
             'geo_viewbox' => filled($state['geo_viewbox'] ?? null) ? trim($state['geo_viewbox']) : null,
+            'order_number_start' => max(1, (int) ($state['order_number_start'] ?? 1)),
+            'order_number_padding' => min(12, max(1, (int) ($state['order_number_padding'] ?? 5))),
         ]);
 
         $record = $this->getRecord();

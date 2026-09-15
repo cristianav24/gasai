@@ -11,6 +11,7 @@ class Tenant extends Model
     protected $fillable = [
         'name', 'slug', 'rubro', 'tracks_containers', 'currency', 'timezone',
         'geo_city', 'geo_region', 'geo_country', 'geo_viewbox',
+        'order_number_start', 'order_number_padding',
         'business_hours', 'onboarding_step', 'onboarding_completed_at',
         'onboarding_checklist_dismissed',
     ];
@@ -20,6 +21,8 @@ class Tenant extends Model
         'onboarding_completed_at' => 'datetime',
         'onboarding_checklist_dismissed' => 'boolean',
         'tracks_containers' => 'boolean',
+        'order_number_start' => 'integer',
+        'order_number_padding' => 'integer',
     ];
 
     public function onboardingCompleted(): bool

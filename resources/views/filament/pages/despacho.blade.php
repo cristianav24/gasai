@@ -181,7 +181,7 @@
                         @forelse ($pedidos as $order)
                             <div class="order" style="--accent: {{ $accent }};">
                                 <div class="o-top">
-                                    <span class="o-id">#{{ $order->id }}</span>
+                                    <span class="o-id">#{{ $order->displayNumber() }}</span>
                                     <span class="o-total">S/ {{ number_format((float) $order->total, 2) }}</span>
                                 </div>
 
@@ -417,7 +417,7 @@
             <div class="ov" wire:key="delivery-modal">
                 <div class="modal" style="max-width:460px;">
                     <div class="m-head">
-                        <span class="m-title">Entrega · #{{ $o?->id }}</span>
+                        <span class="m-title">Entrega · #{{ $o?->displayNumber() }}</span>
                         <button class="m-close" wire:click="closeDelivery"><x-heroicon-o-x-mark /></button>
                     </div>
 

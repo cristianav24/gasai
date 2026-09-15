@@ -38,13 +38,26 @@ class Order extends Model
     }
 
     protected $fillable = [
-        'tenant_id', 'branch_id', 'customer_id', 'address_id',
+        'tenant_id', 'number', 'branch_id', 'customer_id', 'address_id',
         'delivery_zone_id', 'courier_id',
         'subtotal', 'delivery_fee', 'total',
         'status', 'channel',
         'scheduled_date', 'scheduled_slot', 'scheduled_time', 'notes',
         'stock_applied_at', 'containers_applied_at',
     ];
+
+    /**
+     * Número visible del pedido, formateado con el relleno de ceros configurado
+     * por el negocio (ej. 00001000). Cae al id para pedidos antiguos sin número.
+     */
+    public function displayNumber(): string
+    {
+        $n = $this->number ?? $this->id;
+        $tenant = $this->relationLoaded('tenant') ? $this->tenant : Tenant::find($this->tenant_id);
+        $pad = (int) ($tenant?->order_number_padding ?? 5);
+
+        return str_pad((string) $n, max($pad, 1), '0', STR_PAD_LEFT);
+    }
 
     protected $casts = [
         'subtotal' => 'decimal:2',

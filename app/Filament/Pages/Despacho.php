@@ -55,7 +55,7 @@ class Despacho extends Page
     {
         $orders = Order::query()
             ->whereIn('status', Order::FLOW)
-            ->with(['customer', 'courier', 'items', 'address'])
+            ->with(['customer', 'courier', 'items', 'address', 'tenant'])
             ->orderBy('scheduled_date')
             ->orderBy('id')
             ->get();
@@ -355,7 +355,7 @@ class Despacho extends Page
         $this->showNewOrder = false;
 
         Notification::make()->success()
-            ->title("Pedido #{$order->id} creado")
+            ->title("Pedido #{$order->displayNumber()} creado")
             ->body('Total: S/ ' . number_format((float) $order->total, 2) . ' · queda en Pendiente.')
             ->send();
     }
@@ -427,7 +427,7 @@ class Despacho extends Page
             return null;
         }
 
-        return Order::with(['customer', 'address', 'deliveryZone', 'items'])->find($this->deliveryOrderId);
+        return Order::with(['customer', 'address', 'deliveryZone', 'items', 'tenant'])->find($this->deliveryOrderId);
     }
 
     // ---------- Editar precios de un pedido existente ----------

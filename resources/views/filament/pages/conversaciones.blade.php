@@ -279,7 +279,7 @@
                         {{ $cp['orders_count'] }} en total
                         @if ($cp['last_order'])
                             <div class="muted" style="font-size:.8rem; margin-top:2px;">
-                                Último: #{{ $cp['last_order']->id }} · {{ \App\Models\Order::LABELS[$cp['last_order']->status] ?? $cp['last_order']->status }} · S/ {{ number_format((float) $cp['last_order']->total, 2) }}
+                                Último: #{{ $cp['last_order']->displayNumber() }} · {{ \App\Models\Order::LABELS[$cp['last_order']->status] ?? $cp['last_order']->status }} · S/ {{ number_format((float) $cp['last_order']->total, 2) }}
                             </div>
                         @endif
                     </div>
