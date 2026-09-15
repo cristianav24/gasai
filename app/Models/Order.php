@@ -43,7 +43,7 @@ class Order extends Model
         'subtotal', 'delivery_fee', 'total',
         'status', 'channel',
         'scheduled_date', 'scheduled_slot', 'scheduled_time', 'notes',
-        'stock_applied_at', 'containers_applied_at',
+        'stock_applied_at', 'containers_applied_at', 'container_stock_applied_at',
     ];
 
     /**
@@ -66,6 +66,7 @@ class Order extends Model
         'scheduled_date' => 'date',
         'stock_applied_at' => 'datetime',
         'containers_applied_at' => 'datetime',
+        'container_stock_applied_at' => 'datetime',
     ];
 
     public function branch(): BelongsTo

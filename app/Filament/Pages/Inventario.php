@@ -3,8 +3,12 @@
 namespace App\Filament\Pages;
 
 use App\Models\Branch;
+use App\Models\ContainerStock;
+use App\Models\ContainerStockMovement;
+use App\Models\ContainerType;
 use App\Models\Product;
 use App\Models\StockLevel;
+use App\Services\Containers\ContainerStockService;
 use App\Services\Stock\StockService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -69,9 +73,109 @@ class Inventario extends Page
             ->all();
     }
 
+    // ---------- Inventario de bidones/envases (llenos / vacíos / nuevos) ----------
+
+    /** @return Collection<int, ContainerType> */
+    public function containerTypes(): Collection
+    {
+        return ContainerType::where('active', true)->orderBy('name')->get();
+    }
+
+    /** Inventario de envases indexado por container_type_id. */
+    public function containerStockMap(): Collection
+    {
+        return ContainerStock::query()->get()->keyBy('container_type_id');
+    }
+
+    /** Últimos movimientos del inventario de envases. */
+    public function containerMovements(): Collection
+    {
+        return ContainerStockMovement::query()
+            ->with('containerType')
+            ->latest('id')
+            ->limit(8)
+            ->get();
+    }
+
+    /** Opciones de bucket para los formularios. */
+    private function bucketOptions(): array
+    {
+        return ['full' => 'Llenos', 'empty' => 'Vacíos', 'new' => 'Nuevos'];
+    }
+
     protected function getHeaderActions(): array
     {
+        $tieneEnvases = $this->containerTypes()->isNotEmpty();
+
         return [
+            Action::make('ingresarBidones')
+                ->label('Ingresar bidones')
+                ->icon(Heroicon::OutlinedPlusCircle)
+                ->color('success')
+                ->visible($tieneEnvases)
+                ->form([
+                    Select::make('container_type_id')->label('Tipo de bidón')
+                        ->options(fn () => $this->containerTypes()->pluck('name', 'id'))->required(),
+                    Select::make('bucket')->label('Estado')
+                        ->options($this->bucketOptions())->default('full')->required(),
+                    TextInput::make('qty')->label('Cantidad')->numeric()->minValue(1)->required(),
+                    TextInput::make('note')->label('Motivo (opcional)')->maxLength(255)
+                        ->placeholder('Ej. compra a proveedor'),
+                ])
+                ->action(function (array $data): void {
+                    app(ContainerStockService::class)->add(
+                        Filament::getTenant()->getKey(),
+                        (int) $data['container_type_id'],
+                        (string) $data['bucket'],
+                        (int) $data['qty'],
+                        $data['note'] ?: null,
+                    );
+                    Notification::make()->success()->title('Bidones ingresados')->send();
+                }),
+
+            Action::make('retirarBidones')
+                ->label('Retirar')
+                ->icon(Heroicon::OutlinedMinusCircle)
+                ->visible($tieneEnvases)
+                ->form([
+                    Select::make('container_type_id')->label('Tipo de bidón')
+                        ->options(fn () => $this->containerTypes()->pluck('name', 'id'))->required(),
+                    Select::make('bucket')->label('Estado')
+                        ->options($this->bucketOptions())->default('full')->required(),
+                    TextInput::make('qty')->label('Cantidad')->numeric()->minValue(1)->required(),
+                    TextInput::make('note')->label('Motivo (opcional)')->maxLength(255)
+                        ->placeholder('Ej. bidón roto / merma'),
+                ])
+                ->action(function (array $data): void {
+                    app(ContainerStockService::class)->remove(
+                        Filament::getTenant()->getKey(),
+                        (int) $data['container_type_id'],
+                        (string) $data['bucket'],
+                        (int) $data['qty'],
+                        $data['note'] ?: null,
+                    );
+                    Notification::make()->success()->title('Bidones retirados')->send();
+                }),
+
+            Action::make('llenarBidones')
+                ->label('Recargar vacíos')
+                ->icon(Heroicon::OutlinedArrowPath)
+                ->visible($tieneEnvases)
+                ->form([
+                    Select::make('container_type_id')->label('Tipo de bidón')
+                        ->options(fn () => $this->containerTypes()->pluck('name', 'id'))->required(),
+                    TextInput::make('qty')->label('¿Cuántos vacíos llenaste?')->numeric()->minValue(1)->required()
+                        ->helperText('Pasan de "vacíos" a "llenos".'),
+                ])
+                ->action(function (array $data): void {
+                    app(ContainerStockService::class)->fill(
+                        Filament::getTenant()->getKey(),
+                        (int) $data['container_type_id'],
+                        (int) $data['qty'],
+                    );
+                    Notification::make()->success()->title('Vacíos llenados')->send();
+                }),
+
             Action::make('ajustar')
                 ->label('Ajustar stock')
                 ->icon(Heroicon::OutlinedPencilSquare)

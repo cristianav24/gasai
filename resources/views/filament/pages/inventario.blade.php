@@ -11,6 +11,11 @@
         $agotados = $totales->filter(fn ($t) => $t <= 0)->count();
         $bajos = $totales->filter(fn ($t) => $t > 0 && $t <= $low)->count();
         $ok = $totales->filter(fn ($t) => $t > $low)->count();
+
+        // Inventario de bidones (envases): llenos / vacíos / nuevos por tipo.
+        $containerTypes = $this->containerTypes();
+        $containerStock = $this->containerStockMap();
+        $containerMovs = $this->containerMovements();
     @endphp
 
     <style>
@@ -53,6 +58,25 @@
         .inv .badge.out { background:rgba(239,68,68,.15); color:#dc2626; }
         .dark .inv .badge.out { color:#f87171; }
         .inv .empty { padding:2rem 1rem; text-align:center; color:var(--muted); font-size:.9rem; }
+
+        /* Inventario de bidones */
+        .inv .bidones { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.9rem; padding:1.1rem; }
+        .inv .bcard { border:1px solid var(--border); border-radius:.9rem; padding:.9rem 1rem; background:var(--soft); }
+        .inv .bcard .bt { font-weight:700; color:var(--text); margin-bottom:.7rem; }
+        .inv .brow { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
+        .inv .bcell { text-align:center; background:var(--card); border:1px solid var(--border); border-radius:.7rem; padding:.55rem .3rem; }
+        .inv .bcell .bn { font-size:1.4rem; font-weight:800; line-height:1; }
+        .inv .bcell .bl { font-size:.7rem; color:var(--muted); margin-top:.3rem; display:flex; align-items:center; justify-content:center; gap:.25rem; }
+        .inv .bhist { padding:0 1.1rem 1.1rem; }
+        .inv .bhist .hh { font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); margin:.2rem 0 .5rem; }
+        .inv .hrow { display:flex; align-items:center; gap:.5rem; font-size:.8rem; color:var(--text); padding:.3rem 0; border-bottom:1px solid var(--line); }
+        .inv .hrow:last-child { border-bottom:0; }
+        .inv .hrow .hd { margin-left:auto; font-weight:700; color:var(--muted); font-size:.76rem; white-space:nowrap; }
+        .inv .chip { font-size:.72rem; font-weight:700; padding:.05rem .4rem; border-radius:999px; }
+        .inv .chip.pos { background:rgba(34,197,94,.15); color:#15803d; }
+        .dark .inv .chip.pos { color:#4ade80; }
+        .inv .chip.neg { background:rgba(239,68,68,.15); color:#dc2626; }
+        .dark .inv .chip.neg { color:#f87171; }
     </style>
 
     <div class="inv">
@@ -63,6 +87,60 @@
             <div class="stat"><div class="n" style="color:#f59e0b;">{{ $bajos }}</div><div class="l"><span class="dot" style="background:#f59e0b;"></span>Stock bajo (≤{{ $low }})</div></div>
             <div class="stat"><div class="n" style="color:#ef4444;">{{ $agotados }}</div><div class="l"><span class="dot" style="background:#ef4444;"></span>Agotados / negativo</div></div>
         </div>
+
+        {{-- Inventario de bidones (llenos / vacíos / nuevos) --}}
+        @if ($containerTypes->isNotEmpty())
+            <div class="panel" style="margin-bottom:1rem;">
+                <div class="p-head">
+                    <div>
+                        <div class="p-title">Inventario de bidones</div>
+                        <div class="p-sub">Al entregar: recarga = −1 lleno y +1 vacío; bidón nuevo = −1 nuevo. Usa los botones de arriba para ingresar, retirar o recargar vacíos.</div>
+                    </div>
+                </div>
+
+                <div class="bidones">
+                    @foreach ($containerTypes as $ct)
+                        @php($s = $containerStock->get($ct->id))
+                        <div class="bcard">
+                            <div class="bt">{{ $ct->name }}</div>
+                            <div class="brow">
+                                <div class="bcell">
+                                    <div class="bn" style="color:#0ea5e9;">{{ $s?->full_count ?? 0 }}</div>
+                                    <div class="bl">💧 Llenos</div>
+                                </div>
+                                <div class="bcell">
+                                    <div class="bn" style="color:#f59e0b;">{{ $s?->empty_count ?? 0 }}</div>
+                                    <div class="bl">🫙 Vacíos</div>
+                                </div>
+                                <div class="bcell">
+                                    <div class="bn" style="color:#22c55e;">{{ $s?->new_count ?? 0 }}</div>
+                                    <div class="bl">✨ Nuevos</div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if ($containerMovs->isNotEmpty())
+                    <div class="bhist">
+                        <div class="hh">Últimos movimientos</div>
+                        @foreach ($containerMovs as $m)
+                            @php($parts = [])
+                            @php($parts[] = $m->full_delta != 0 ? (($m->full_delta > 0 ? '+' : '') . $m->full_delta . ' llenos') : null)
+                            @php($parts[] = $m->empty_delta != 0 ? (($m->empty_delta > 0 ? '+' : '') . $m->empty_delta . ' vacíos') : null)
+                            @php($parts[] = $m->new_delta != 0 ? (($m->new_delta > 0 ? '+' : '') . $m->new_delta . ' nuevos') : null)
+                            @php($parts = array_filter($parts))
+                            <div class="hrow">
+                                <span>{{ $m->containerType?->name ?? 'Envase' }}</span>
+                                <span class="chip {{ ($m->full_delta + $m->empty_delta + $m->new_delta) >= 0 ? 'pos' : 'neg' }}">{{ implode(', ', $parts) }}</span>
+                                <span style="color:var(--muted);">· {{ $m->reasonLabel() }}</span>
+                                <span class="hd">{{ $m->created_at?->format('d/m H:i') }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @endif
 
         <div class="panel">
             <div class="p-head">
