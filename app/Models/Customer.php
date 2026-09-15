@@ -12,14 +12,17 @@ class Customer extends Model
 
     protected $fillable = ['tenant_id', 'phone', 'wa_user_id', 'username', 'name', 'notes'];
 
-    /** Nombre para mostrar: nombre guardado, si no el @username, si no el teléfono/ID. */
+    /**
+     * Nombre para mostrar: nombre guardado, si no el @username, si no el teléfono.
+     * Nunca mostramos el wa_user_id (BSUID técnico de WhatsApp): no le dice nada
+     * al operador. Si no hay nada legible, "Cliente".
+     */
     public function displayName(): string
     {
         return $this->name
             ?: ($this->username ? '@' . ltrim($this->username, '@') : null)
             ?: $this->phone
-            ?: $this->wa_user_id
-            ?: 'Anónimo';
+            ?: 'Cliente';
     }
 
     public function addresses(): HasMany

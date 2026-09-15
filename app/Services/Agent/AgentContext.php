@@ -38,9 +38,14 @@ class AgentContext
      */
     public function ensureCustomer(?string $name = null): Customer
     {
+        // Nombre a usar: el que dio el cliente (guardar_cliente) o, si no, el
+        // nombre de perfil de WhatsApp de la conversación. Nunca el BSUID/ID técnico.
+        $profile = filled($this->conversation->contact_name) ? trim($this->conversation->contact_name) : null;
+        $clean = ($name !== null && trim($name) !== '') ? trim($name) : $profile;
+
         if ($this->customer) {
-            if ($name !== null && trim($name) !== '' && blank($this->customer->name)) {
-                $this->customer->forceFill(['name' => trim($name)])->save();
+            if ($clean !== null && blank($this->customer->name)) {
+                $this->customer->forceFill(['name' => $clean])->save();
             }
 
             return $this->customer;
@@ -48,7 +53,6 @@ class AgentContext
 
         $wa = $this->conversation->wa_user_id;
         $phone = $this->conversation->phone;
-        $clean = ($name !== null && trim($name) !== '') ? trim($name) : null;
 
         // Reusar el cliente de esta identidad si ya existe (evita duplicados).
         $base = Customer::withoutGlobalScopes()->where('tenant_id', $this->tenantId());
