@@ -65,7 +65,8 @@ class AgentService
         );
 
         $definitions = $this->tools->definitions();
-        $temperature = (float) (BotConfig::first()?->temperature ?? 0.3);
+        $temperature = (float) (BotConfig::withoutGlobalScopes()
+            ->where('tenant_id', $context->tenantId())->first()?->temperature ?? 0.3);
 
         $deadline = microtime(true) + (float) config('services.deepseek.timeout', 30) * self::MAX_ITERATIONS;
 

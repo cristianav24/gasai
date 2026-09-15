@@ -17,7 +17,10 @@ class SystemPromptBuilder
     public function build(AgentContext $context): string
     {
         $tenant = $context->tenant;
-        $config = BotConfig::first();
+        // Importante: en el job de WhatsApp no hay tenant en el scope global, así
+        // que acotamos SIEMPRE por el negocio de la conversación (si no, leeríamos
+        // la config/productos de otro negocio).
+        $config = BotConfig::withoutGlobalScopes()->where('tenant_id', $tenant->id)->first();
 
         $agentName = $config?->agent_name ?? 'Asistente';
         $tone = $config?->tone ?? 'amable';
@@ -79,7 +82,8 @@ class SystemPromptBuilder
         }
 
         // --- Catálogo con precios reales ---
-        $productos = Product::where('active', true)->orderBy('name')->get();
+        $productos = Product::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+            ->where('active', true)->orderBy('name')->get();
         if ($productos->isNotEmpty()) {
             $lineas = $productos->map(function (Product $p): string {
                 $precio = number_format((float) $p->price, 2);
@@ -92,7 +96,8 @@ class SystemPromptBuilder
         }
 
         // --- Zonas de entrega ---
-        $zonas = DeliveryZone::where('active', true)->orderBy('name')->get();
+        $zonas = DeliveryZone::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+            ->where('active', true)->orderBy('name')->get();
         if ($zonas->isNotEmpty()) {
             $lineas = $zonas->map(function (DeliveryZone $z): string {
                 $costo = number_format((float) $z->delivery_fee, 2);
@@ -103,7 +108,7 @@ class SystemPromptBuilder
         }
 
         // --- Base de conocimiento (respetando el límite de tamaño) ---
-        $conocimiento = $this->knowledgeBlock();
+        $conocimiento = $this->knowledgeBlock($tenant);
         if ($conocimiento !== '') {
             $partes[] = "Información de la empresa:\n{$conocimiento}";
         }
@@ -135,9 +140,10 @@ class SystemPromptBuilder
      * Une el conocimiento activo respetando MAX_TOTAL_CHARS. Si se pasa, corta y
      * avisa (no revienta el prompt ni encarece la llamada).
      */
-    private function knowledgeBlock(): string
+    private function knowledgeBlock(\App\Models\Tenant $tenant): string
     {
-        $items = KnowledgeItem::where('active', true)->orderBy('id')->get();
+        $items = KnowledgeItem::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+            ->where('active', true)->orderBy('id')->get();
 
         $buffer = '';
         $limite = KnowledgeItem::MAX_TOTAL_CHARS;
