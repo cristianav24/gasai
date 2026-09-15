@@ -155,8 +155,12 @@ class CrearPedido implements Tool
             return $order;
         });
 
+        // El número formateado del negocio (ej. 00001559) es el que ve el cliente.
+        $order->setRelation('tenant', $context->tenant);
+
         return [
             'ok' => true,
+            'numero_pedido' => $order->displayNumber(),
             'pedido_id' => $order->id,
             'estado' => $order->status,
             'total' => (float) $order->total,

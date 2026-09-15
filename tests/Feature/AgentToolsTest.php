@@ -120,6 +120,21 @@ class AgentToolsTest extends TestCase
         $this->assertSame('12.50', $item->unit_price_list);        // precio congelado
     }
 
+    public function test_crear_pedido_devuelve_el_numero_formateado_para_el_cliente(): void
+    {
+        $this->tenant->update(['order_number_start' => 1000, 'order_number_padding' => 8]);
+        $bidon = Product::create(['name' => 'Bidón 20L', 'price' => 10, 'unit' => 'bidón']);
+        $customer = Customer::create(['phone' => '+51987654321', 'name' => 'Juan']);
+
+        $res = app(CrearPedido::class)->handle([
+            'items' => [['producto_id' => $bidon->id, 'cantidad' => 1]],
+            'fecha_programada' => '2026-09-10', 'franja' => 'manana',
+        ], $this->context($customer));
+
+        $this->assertTrue($res['ok']);
+        $this->assertSame('00001000', $res['numero_pedido']);
+    }
+
     public function test_precio_congelado_no_cambia_si_el_producto_sube_de_precio(): void
     {
         $bidon = Product::create(['name' => 'Bidón 20L', 'price' => 12.50, 'unit' => 'bidón']);

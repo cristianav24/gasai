@@ -44,8 +44,11 @@ class EstadoPedido implements Tool
             return ['encontrado' => false];
         }
 
+        $order->setRelation('tenant', $context->tenant);
+
         return [
             'encontrado' => true,
+            'numero_pedido' => $order->displayNumber(),
             'pedido_id' => $order->id,
             'estado' => $order->status,
             'total' => (float) $order->total,
