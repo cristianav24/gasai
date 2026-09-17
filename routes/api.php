@@ -3,11 +3,15 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConversationApiController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\MigracionClientesController;
 use App\Http\Controllers\Api\OrderApiController;
 use Illuminate\Support\Facades\Route;
 
 // API para la app móvil del repartidor.
 Route::post('/login', [AuthController::class, 'login']);
+
+// Importación masiva de clientes (migración), protegida por token.
+Route::post('/migrar-clientes', [MigracionClientesController::class, 'importar']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

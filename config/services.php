@@ -56,4 +56,7 @@ return [
         'debounce_seconds' => (int) env('WHATSAPP_DEBOUNCE_SECONDS', 5),
     ],
 
+    // Token de un solo uso para la importación masiva de clientes (migración).
+    'migration_token' => env('MIGRATION_TOKEN'),
+
 ];
