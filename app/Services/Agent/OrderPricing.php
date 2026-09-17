@@ -104,6 +104,27 @@ class OrderPricing
 
         $total = round($subtotal + $costoEnvio, 2);
 
+        // Precio "con envío incluido" por línea: repartimos el costo de envío entre
+        // las unidades para que el cliente vea un precio que cuadra con el total,
+        // sin una línea de envío aparte. La última línea absorbe el redondeo.
+        $totalUnidades = array_sum(array_map(fn (array $l): int => (int) $l['cantidad'], $lineas));
+        $envioRestante = $costoEnvio;
+        $n = count($lineas);
+        foreach ($lineas as $i => &$l) {
+            if ($costoEnvio > 0 && $totalUnidades > 0) {
+                $envioLinea = ($i === $n - 1)
+                    ? round($envioRestante, 2)
+                    : round($costoEnvio * ($l['cantidad'] / $totalUnidades), 2);
+                $envioRestante = round($envioRestante - $envioLinea, 2);
+            } else {
+                $envioLinea = 0.0;
+            }
+
+            $l['importe_con_envio'] = round($l['importe'] + $envioLinea, 2);
+            $l['precio_con_envio'] = round($l['importe_con_envio'] / max(1, $l['cantidad']), 2);
+        }
+        unset($l);
+
         return [
             'lineas' => $lineas,
             'subtotal' => $subtotal,
