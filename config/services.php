@@ -48,6 +48,7 @@ return [
     'whatsapp' => [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),   // Para la verificación del webhook.
         'app_secret' => env('WHATSAPP_APP_SECRET'),       // Firma X-Hub-Signature-256 y token exchange.
+        'verify_signature' => env('WHATSAPP_VERIFY_SIGNATURE', true), // Validar la firma del webhook (apágalo para onboarding libre estilo Chatwoot).
         'app_id' => env('WHATSAPP_APP_ID'),               // App de Meta (para Embedded Signup).
         'config_id' => env('WHATSAPP_CONFIG_ID'),         // Configuración del Embedded Signup.
         'graph_url' => env('WHATSAPP_GRAPH_URL', 'https://graph.facebook.com'),

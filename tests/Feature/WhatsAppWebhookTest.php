@@ -225,4 +225,28 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertSame(0, Message::withoutGlobalScopes()->count());
         Queue::assertNothingPushed();
     }
+
+    public function test_con_firma_desactivada_acepta_el_webhook_sin_firma(): void
+    {
+        Queue::fake();
+        // Hay secret configurado pero la validación está apagada (estilo Chatwoot).
+        config(['services.whatsapp.app_secret' => 'un-secret', 'services.whatsapp.verify_signature' => false]);
+        $this->tenantConNumero('PHONE_LIBRE');
+
+        $this->postJson('/webhooks/whatsapp', $this->payload('PHONE_LIBRE', '51987654321', 'Hola', 'wamid.free'))
+            ->assertOk();
+
+        $this->assertSame(1, Message::withoutGlobalScopes()->count());
+    }
+
+    public function test_con_firma_activada_y_secret_rechaza_sin_firma(): void
+    {
+        config(['services.whatsapp.app_secret' => 'un-secret', 'services.whatsapp.verify_signature' => true]);
+        $this->tenantConNumero('PHONE_SEGURO');
+
+        $this->postJson('/webhooks/whatsapp', $this->payload('PHONE_SEGURO', '51987654321', 'Hola', 'wamid.sig'))
+            ->assertForbidden();
+
+        $this->assertSame(0, Message::withoutGlobalScopes()->count());
+    }
 }

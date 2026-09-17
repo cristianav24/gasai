@@ -47,6 +47,12 @@ class WhatsAppWebhookController extends Controller
      */
     private function signatureValid(Request $request): bool
     {
+        // Validación desactivada a propósito (onboarding libre estilo Chatwoot):
+        // cualquier negocio conecta con solo token + phone_number_id.
+        if (! config('services.whatsapp.verify_signature', true)) {
+            return true;
+        }
+
         $appSecret = config('services.whatsapp.app_secret');
 
         if (blank($appSecret)) {
