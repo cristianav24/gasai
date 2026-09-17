@@ -77,4 +77,57 @@ class MigracionClientesController extends Controller
             'total_clientes' => Customer::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count(),
         ]);
     }
+
+    /**
+     * Clasifica clientes como 'cliente' o 'lead'. Recibe items { key, tipo }
+     * donde key es un teléfono (dígitos) o un @username.
+     */
+    public function clasificar(Request $request): JsonResponse
+    {
+        $token = (string) config('services.migration_token');
+        if ($token === '' || ! hash_equals($token, (string) $request->input('token'))) {
+            abort(403, 'Token inválido.');
+        }
+
+        $tenant = Tenant::where('slug', (string) $request->input('tenant'))->first();
+        if (! $tenant) {
+            abort(422, 'Negocio no encontrado.');
+        }
+
+        $actualizados = 0;
+        $noEncontrados = 0;
+
+        foreach ((array) $request->input('items', []) as $item) {
+            $key = trim((string) ($item['key'] ?? ''));
+            $tipo = ($item['tipo'] ?? '') === 'cliente' ? 'cliente' : (($item['tipo'] ?? '') === 'lead' ? 'lead' : null);
+            if ($key === '' || $tipo === null) {
+                continue;
+            }
+
+            $q = Customer::withoutGlobalScopes()->where('tenant_id', $tenant->id);
+            if (str_starts_with($key, '@')) {
+                $q->where('username', ltrim($key, '@'));
+            } elseif (preg_match('/\d/', $key)) {
+                $q->where('phone', '+' . preg_replace('/\D/', '', $key));
+            } else {
+                $q->where('name', $key);
+            }
+
+            $customer = $q->first();
+            if (! $customer) {
+                $noEncontrados++;
+                continue;
+            }
+            $customer->forceFill(['tipo' => $tipo])->save();
+            $actualizados++;
+        }
+
+        return response()->json([
+            'ok' => true,
+            'actualizados' => $actualizados,
+            'no_encontrados' => $noEncontrados,
+            'clientes' => Customer::withoutGlobalScopes()->where('tenant_id', $tenant->id)->where('tipo', 'cliente')->count(),
+            'leads' => Customer::withoutGlobalScopes()->where('tenant_id', $tenant->id)->where('tipo', 'lead')->count(),
+        ]);
+    }
 }

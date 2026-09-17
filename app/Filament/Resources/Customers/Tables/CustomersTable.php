@@ -8,6 +8,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class CustomersTable
@@ -22,6 +23,16 @@ class CustomersTable
                     ->searchable(['name', 'phone'])
                     ->sortable()
                     ->weight('bold'),
+
+                TextColumn::make('tipo')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'cliente' => 'Cliente', 'lead' => 'Lead', default => '—',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'cliente' => 'success', 'lead' => 'warning', default => 'gray',
+                    }),
 
                 TextColumn::make('phone')
                     ->label('Teléfono')
@@ -53,6 +64,11 @@ class CustomersTable
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(),
+            ])
+            ->filters([
+                SelectFilter::make('tipo')
+                    ->label('Tipo')
+                    ->options(['cliente' => 'Cliente', 'lead' => 'Lead']),
             ])
             ->defaultSort('id', 'desc')
             ->recordActions([

@@ -12,6 +12,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Importación masiva de clientes (migración), protegida por token.
 Route::post('/migrar-clientes', [MigracionClientesController::class, 'importar']);
+Route::post('/clasificar-clientes', [MigracionClientesController::class, 'clasificar']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
