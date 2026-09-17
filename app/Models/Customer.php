@@ -35,6 +35,16 @@ class Customer extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
+    }
+
+    public function containerBalances(): HasMany
+    {
+        return $this->hasMany(ContainerBalance::class);
+    }
+
     public function primaryAddress(): ?Address
     {
         return $this->addresses()->where('is_primary', true)->first()
