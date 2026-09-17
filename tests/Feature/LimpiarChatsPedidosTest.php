@@ -63,4 +63,36 @@ class LimpiarChatsPedidosTest extends TestCase
         $this->assertSame(0, Customer::withoutGlobalScopes()->count());
         $this->assertSame(0, \App\Models\Address::withoutGlobalScopes()->count()); // cascada
     }
+
+    public function test_todo_borra_ventas_stock_y_bidones_pero_conserva_config(): void
+    {
+        $this->seedData();
+
+        // Datos transaccionales adicionales.
+        \App\Models\Sale::create([
+            'tenant_id' => $this->tenant->id, 'branch_id' => $this->branch->id,
+            'status' => 'cobrada', 'subtotal' => 10, 'total' => 10, 'paid_at' => now(),
+        ]);
+        \App\Models\StockLevel::create([
+            'tenant_id' => $this->tenant->id, 'branch_id' => $this->branch->id,
+            'product_id' => \App\Models\Product::create(['tenant_id' => $this->tenant->id, 'name' => 'Bidón', 'price' => 10, 'unit' => 'u'])->id,
+            'quantity' => 50,
+        ]);
+        $tipo = \App\Models\ContainerType::create(['tenant_id' => $this->tenant->id, 'name' => 'Bidón 20L', 'active' => true]);
+        \App\Models\ContainerStock::create(['tenant_id' => $this->tenant->id, 'container_type_id' => $tipo->id, 'full_count' => 20]);
+
+        $this->artisan('gasai:limpiar-chats-pedidos', ['--tenant' => 'h2o', '--todo' => true, '--force' => true])
+            ->assertSuccessful();
+
+        // Transaccional: vacío.
+        $this->assertSame(0, \App\Models\Sale::withoutGlobalScopes()->count());
+        $this->assertSame(0, \App\Models\StockLevel::withoutGlobalScopes()->count());
+        $this->assertSame(0, \App\Models\ContainerStock::withoutGlobalScopes()->count());
+        $this->assertSame(0, Customer::withoutGlobalScopes()->count());
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
+
+        // Configuración: se conserva.
+        $this->assertSame(1, \App\Models\Product::withoutGlobalScopes()->count());
+        $this->assertSame(1, \App\Models\ContainerType::withoutGlobalScopes()->count());
+    }
 }
