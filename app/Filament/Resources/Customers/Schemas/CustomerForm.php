@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Customers\Schemas;
 
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
@@ -16,6 +17,12 @@ class CustomerForm
                     ->label('Nombre')
                     ->maxLength(255)
                     ->helperText('Si viene de WhatsApp, aquí se guarda su nombre de perfil.'),
+
+                Select::make('tipo')
+                    ->label('Tipo')
+                    ->options(['cliente' => 'Cliente', 'lead' => 'Lead'])
+                    ->placeholder('Sin clasificar')
+                    ->helperText('Cliente = ya compró/interactuó. Lead = solo consultó.'),
 
                 TextInput::make('phone')
                     ->label('Teléfono')
