@@ -148,7 +148,8 @@ class Geocoder
 
                     $match = false;
                     foreach ($campos as $c) {
-                        if ($c !== '' && str_contains($c, $distritoLower)) {
+                        // Bidireccional: "chilca" coincide con "chilca, huancayo" y viceversa.
+                        if ($c !== '' && (str_contains($c, $distritoLower) || str_contains($distritoLower, $c))) {
                             $match = true;
                             break;
                         }
