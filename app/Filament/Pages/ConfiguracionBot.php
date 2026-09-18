@@ -46,6 +46,7 @@ class ConfiguracionBot extends Page
 
         $tenant = Filament::getTenant();
         $this->form->fill($base + [
+            'timezone' => $tenant->timezone ?: 'America/Lima',
             'geo_city' => $tenant->geo_city,
             'geo_region' => $tenant->geo_region,
             'geo_country' => $tenant->geo_country ?: 'Perú',
@@ -111,6 +112,22 @@ class ConfiguracionBot extends Page
                     ->rows(4)
                     ->columnSpanFull(),
 
+                Select::make('timezone')
+                    ->label('Zona horaria')
+                    ->helperText('Las fechas y horas del panel y del bot se muestran en esta zona.')
+                    ->options([
+                        'America/Lima' => 'Perú (Lima) — UTC-5',
+                        'America/Bogota' => 'Colombia (Bogotá) — UTC-5',
+                        'America/Guayaquil' => 'Ecuador (Guayaquil) — UTC-5',
+                        'America/La_Paz' => 'Bolivia (La Paz) — UTC-4',
+                        'America/Santiago' => 'Chile (Santiago)',
+                        'America/Mexico_City' => 'México (CDMX) — UTC-6',
+                        'America/Argentina/Buenos_Aires' => 'Argentina (Buenos Aires) — UTC-3',
+                    ])
+                    ->default('America/Lima')
+                    ->required()
+                    ->dehydrated(false),
+
                 Section::make('Zona del negocio')
                     ->description('Ayuda al asistente a ubicar con exactitud las direcciones que te escriben tus clientes.')
                     ->columns(2)
@@ -169,6 +186,7 @@ class ConfiguracionBot extends Page
         // La zona del negocio vive en el tenant, no en la config del bot.
         $state = $this->data;
         Filament::getTenant()->update([
+            'timezone' => filled($state['timezone'] ?? null) ? $state['timezone'] : 'America/Lima',
             'geo_city' => filled($state['geo_city'] ?? null) ? trim($state['geo_city']) : null,
             'geo_region' => filled($state['geo_region'] ?? null) ? trim($state['geo_region']) : null,
             'geo_country' => filled($state['geo_country'] ?? null) ? trim($state['geo_country']) : null,

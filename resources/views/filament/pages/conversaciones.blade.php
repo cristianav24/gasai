@@ -86,6 +86,7 @@
         .gx .foot { padding: .8rem 1rem; border-top: 1px solid var(--border); }
     </style>
 
+    @php($tz = \Filament\Facades\Filament::getTenant()?->timezone ?: 'America/Lima')
     <div class="gx {{ $listCollapsed ? 'collapsed' : '' }}">
         {{-- Lista --}}
         <div class="panel" @if($listCollapsed) style="display:none;" @endif>
@@ -187,14 +188,14 @@
                                          new MutationObserver(b).observe(el,{childList:true,subtree:true}); }">
                         @php($lastDay = null)
                         @forelse ($this->thread() as $m)
-                            @php($day = $m->created_at?->format('Y-m-d'))
+                            @php($day = $m->created_at?->timezone($tz)->format('Y-m-d'))
                             @if ($day !== $lastDay)
-                                <div class="daysep"><span>{{ $m->created_at?->isoFormat('D [de] MMMM') }}</span></div>
+                                <div class="daysep"><span>{{ $m->created_at?->timezone($tz)->isoFormat('D [de] MMMM') }}</span></div>
                                 @php($lastDay = $day)
                             @endif
                             <div class="msg {{ $m->role === 'user' ? 'in' : 'out' }}">
                                 <div class="bubble {{ $m->role === 'user' ? 'in' : 'out' }}">{{ $m->content }}</div>
-                                <span class="btime">{{ $m->created_at?->format('H:i') }}</span>
+                                <span class="btime">{{ $m->created_at?->timezone($tz)->format('H:i') }}</span>
                             </div>
                         @empty
                             <div class="empty" style="margin:auto;"><x-heroicon-o-chat-bubble-oval-left />Sin mensajes aún.</div>
