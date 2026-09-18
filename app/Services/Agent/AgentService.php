@@ -83,7 +83,7 @@ class AgentService
             }
 
             if (! $response->hasToolCalls()) {
-                $text = trim((string) $response->content);
+                $text = $this->formatReply((string) $response->content);
                 if ($text === '') {
                     $text = '¿Podrías repetirme eso, por favor?';
                 }
@@ -126,7 +126,7 @@ class AgentService
 
         try {
             $response = $this->llm->chat($messages, [], ['temperature' => $temperature]);
-            $text = trim((string) $response->content);
+            $text = $this->formatReply((string) $response->content);
         } catch (Throwable $e) {
             report($e);
             $text = '';
@@ -216,6 +216,20 @@ class AgentService
         $this->persist($context, 'assistant', $text);
 
         return $text;
+    }
+
+    /**
+     * Limpia la respuesta del bot: normaliza saltos y COLAPSA las líneas en
+     * blanco (dobles saltos) para que el mensaje se vea compacto en el chat,
+     * como un WhatsApp normal, en vez de espaciado con líneas vacías.
+     */
+    private function formatReply(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $text = preg_replace('/[ \t]+\n/', "\n", $text); // espacios al final de línea
+        $text = preg_replace('/\n{2,}/', "\n", $text);   // sin líneas en blanco
+
+        return trim((string) $text);
     }
 
     private function persist(AgentContext $context, string $role, string $content): void

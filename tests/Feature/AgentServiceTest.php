@@ -102,6 +102,16 @@ class AgentServiceTest extends TestCase
         $this->assertSame('manana', $order->scheduled_slot);
     }
 
+    public function test_colapsa_las_lineas_en_blanco_de_la_respuesta(): void
+    {
+        $fake = new FakeLlmProvider(FakeLlmProvider::text("Hola 😊\n\nDos cosas:\n\n1\n2\n\n\nListo"));
+
+        $reply = $this->withFake($fake)->handle($this->context(), 'hola');
+
+        $this->assertStringNotContainsString("\n\n", $reply);
+        $this->assertSame("Hola 😊\nDos cosas:\n1\n2\nListo", $reply);
+    }
+
     public function test_al_pasarse_del_maximo_de_iteraciones_cierra_sin_escalar(): void
     {
         // Cola vacía: el fake siempre pide una herramienta, forzando el tope.
