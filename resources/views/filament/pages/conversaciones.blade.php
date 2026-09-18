@@ -71,7 +71,7 @@
         .gx .pill.bot { background: #dcfce7; color: #166534; } .gx .pill.human { background: #fef3c7; color: #92400e; }
         .gx .body { flex: 1; overflow-y: auto; padding: 1.1rem; background: var(--page);
             display: flex; flex-direction: column; gap: .7rem; scroll-behavior: smooth; }
-        .gx .bubble { max-width: 74%; width: fit-content; padding: .55rem .85rem; border-radius: 1.1rem; font-size: .9rem;
+        .gx .bubble { max-width: 100%; width: fit-content; padding: .55rem .85rem; border-radius: 1.1rem; font-size: .9rem;
             line-height: 1.4; white-space: pre-wrap; overflow-wrap: break-word; box-shadow: var(--shadow); }
         .gx .bubble.in { background: var(--in-bg); color: var(--in-text); border-bottom-left-radius: .3rem; }
         .gx .bubble.out { background: #f59e0b; color: #1c1917; border-bottom-right-radius: .3rem; }
