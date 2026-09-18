@@ -31,7 +31,7 @@
     </div>
 
     <div class="sv-meta">
-        <div><div class="k">Fecha</div><div class="v">{{ $sale->created_at?->format('d/m/Y H:i') }}</div></div>
+        <div><div class="k">Fecha</div><div class="v">{{ $sale->created_at?->timezone($sale->tenant?->timezone ?: 'America/Lima')->format('d/m/Y H:i') }}</div></div>
         <div><div class="k">Cliente</div><div class="v">{{ $sale->customer?->displayName() ?? 'Mostrador' }}</div></div>
         <div><div class="k">Método de pago</div><div class="v">{{ $sale->paymentMethod?->name ?? '—' }}</div></div>
         <div><div class="k">Cajero</div><div class="v">{{ $sale->cashier?->name ?? '—' }}</div></div>

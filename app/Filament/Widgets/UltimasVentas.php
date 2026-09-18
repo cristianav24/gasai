@@ -25,7 +25,8 @@ class UltimasVentas extends TableWidget
             ->query(Sale::query()->latest('id')->limit(5))
             ->paginated(false)
             ->columns([
-                TextColumn::make('created_at')->label('Fecha')->dateTime('d/m H:i'),
+                TextColumn::make('created_at')->label('Fecha')->dateTime('d/m H:i')
+                    ->timezone(\Filament\Facades\Filament::getTenant()?->timezone ?: 'America/Lima'),
                 TextColumn::make('customer.name')->label('Cliente')->placeholder('Mostrador'),
                 TextColumn::make('total')->label('Total')->money('PEN')->weight('bold'),
                 TextColumn::make('status')->label('Estado')->badge()

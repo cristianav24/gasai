@@ -24,6 +24,7 @@ class SalesTable
                 TextColumn::make('created_at')
                     ->label('Fecha')
                     ->dateTime('d/m/Y H:i')
+                    ->timezone(\Filament\Facades\Filament::getTenant()?->timezone ?: 'America/Lima')
                     ->sortable(),
 
                 TextColumn::make('id')

@@ -121,6 +121,7 @@ class Playground extends Page
     private function refreshThread(): void
     {
         $conversation = Conversation::findOrFail($this->conversationId);
+        $tz = Filament::getTenant()?->timezone ?: 'America/Lima';
 
         $this->thread = $conversation->messages()
             ->whereIn('role', ['user', 'assistant'])
@@ -129,7 +130,7 @@ class Playground extends Page
             ->map(fn ($m): array => [
                 'role' => $m->role,
                 'content' => (string) $m->content,
-                'time' => $m->created_at?->format('H:i') ?? '',
+                'time' => $m->created_at?->timezone($tz)->format('H:i') ?? '',
             ])
             ->all();
     }

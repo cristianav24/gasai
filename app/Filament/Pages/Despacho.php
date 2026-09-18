@@ -105,6 +105,7 @@ class Despacho extends Page
         if ($next === 'entregado') {
             app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
             app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
+            app(\App\Services\Containers\ContainerStockService::class)->applyOrderDelivery($order);
         }
 
         Notification::make()->success()->title('Pedido: ' . $this->label($next))->send();
@@ -174,7 +175,7 @@ class Despacho extends Page
     {
         $this->reset(['noCustomerId', 'noName', 'noPhone', 'noZoneId', 'noTime', 'noNotes']);
         $this->customerMode = 'nuevo';
-        $this->noDate = now()->format('Y-m-d');
+        $this->noDate = now(Filament::getTenant()?->timezone ?: 'America/Lima')->format('Y-m-d');
         $this->noSlot = 'manana';
         $this->noItems = [['product_id' => null, 'qty' => 1, 'price' => null]];
         $this->showNewOrder = true;
@@ -377,6 +378,7 @@ class Despacho extends Page
             $order->update(['status' => 'entregado']);
             app(\App\Services\Stock\StockService::class)->applyOrderDelivery($order);
             app(\App\Services\Containers\ContainerService::class)->applyOrderDelivery($order);
+            app(\App\Services\Containers\ContainerStockService::class)->applyOrderDelivery($order);
         }
 
         return redirect($this->cobrarUrl($orderId));

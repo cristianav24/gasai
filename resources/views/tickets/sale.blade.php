@@ -66,7 +66,7 @@
         <hr>
 
         <div class="row"><span class="b">Ticket</span><span>#{{ $sale->id }}</span></div>
-        <div class="row"><span class="muted">Fecha</span><span>{{ $sale->created_at?->format('d/m/Y H:i') }}</span></div>
+        <div class="row"><span class="muted">Fecha</span><span>{{ $sale->created_at?->timezone($sale->tenant?->timezone ?: 'America/Lima')->format('d/m/Y H:i') }}</span></div>
         <div class="row"><span class="muted">Cliente</span><span>{{ $sale->customer?->displayName() ?? 'Mostrador' }}</span></div>
         @if ($sale->order_id)
             <div class="row"><span class="muted">Pedido</span><span>#{{ $sale->order_id }}</span></div>

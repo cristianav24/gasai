@@ -134,7 +134,7 @@
                                 <span>{{ $m->containerType?->name ?? 'Envase' }}</span>
                                 <span class="chip {{ ($m->full_delta + $m->empty_delta + $m->new_delta) >= 0 ? 'pos' : 'neg' }}">{{ implode(', ', $parts) }}</span>
                                 <span style="color:var(--muted);">· {{ $m->reasonLabel() }}</span>
-                                <span class="hd">{{ $m->created_at?->format('d/m H:i') }}</span>
+                                <span class="hd">{{ $m->created_at?->timezone(\Filament\Facades\Filament::getTenant()?->timezone ?: 'America/Lima')->format('d/m H:i') }}</span>
                             </div>
                         @endforeach
                     </div>
