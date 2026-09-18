@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Conversation;
 use App\Models\Tenant;
 use App\Services\Agent\AgentContext;
+use App\Models\Address;
+use App\Services\Agent\Tools\GuardarDireccion;
 use App\Services\Agent\Tools\ValidarDireccion;
 use App\Services\Geo\Geocoder;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -83,6 +85,30 @@ class GeocoderTest extends TestCase
         $this->assertCount(1, $res);
         $this->assertSame('El Tambo', $res[0]['distrito']);
         $this->assertEqualsWithDelta(-12.0570, $res[0]['lat'], 0.001);
+    }
+
+    public function test_guardar_direccion_geocodifica_sola_cuando_no_le_pasan_coordenadas(): void
+    {
+        $this->fakeNominatim();
+
+        $tenant = Tenant::create([
+            'name' => 'H2O', 'slug' => 'h2o', 'rubro' => 'agua',
+            'geo_city' => 'Huancayo', 'geo_region' => 'Junín', 'geo_country' => 'Perú',
+        ]);
+        $conv = Conversation::create(['tenant_id' => $tenant->id, 'channel' => 'whatsapp', 'status' => 'bot']);
+        $ctx = new AgentContext($tenant, $conv, null);
+
+        // Sin lat/lng: la herramienta los resuelve sola.
+        $res = app(GuardarDireccion::class)->handle(
+            ['direccion' => 'Jirón Gonzáles Prada', 'distrito' => 'El Tambo'],
+            $ctx,
+        );
+
+        $this->assertTrue($res['ok']);
+        $this->assertTrue($res['con_ubicacion']);
+        $addr = Address::withoutGlobalScopes()->find($res['direccion_id']);
+        $this->assertNotNull($addr->lat);
+        $this->assertEqualsWithDelta(-12.0581, (float) $addr->lat, 0.001);
     }
 
     public function test_tool_validar_direccion_usa_la_zona_del_negocio(): void
