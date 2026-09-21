@@ -43,6 +43,15 @@ class Conversaciones extends Page
 
     public string $draft = '';
 
+    /** Abre directo la conversación indicada en la URL (?c=ID), ej. desde el push. */
+    public function mount(): void
+    {
+        $id = (int) request()->query('c', 0);
+        if ($id > 0 && Conversation::whereKey($id)->exists()) {
+            $this->selectedId = $id;
+        }
+    }
+
     /** Colapsar la lista de conversaciones para dar más espacio al chat. */
     public bool $listCollapsed = false;
 

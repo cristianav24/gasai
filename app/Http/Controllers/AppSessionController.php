@@ -26,6 +26,12 @@ class AppSessionController extends Controller
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
-        return redirect('/admin');
+        // Destino opcional (deep-link del push): solo rutas internas del panel.
+        $next = (string) $request->query('next', '');
+        $safe = ($next !== '' && str_starts_with($next, '/admin/') && ! str_starts_with($next, '//') && ! str_contains($next, '\\'))
+            ? $next
+            : '/admin';
+
+        return redirect($safe);
     }
 }
