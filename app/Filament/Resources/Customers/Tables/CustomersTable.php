@@ -9,6 +9,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
 class CustomersTable
@@ -38,6 +39,15 @@ class CustomersTable
                     ->label('Teléfono')
                     ->searchable()
                     ->placeholder('—'),
+
+                TextColumn::make('direccion')
+                    ->label('Dirección')
+                    ->state(fn (Customer $record): ?string => $record->primaryAddress()?->address)
+                    ->limit(40)
+                    ->tooltip(fn (Customer $record): ?string => $record->primaryAddress()?->address)
+                    ->placeholder('—')
+                    ->wrap()
+                    ->toggleable(),
 
                 TextColumn::make('orders_count')
                     ->label('Pedidos')
@@ -69,6 +79,17 @@ class CustomersTable
                 SelectFilter::make('tipo')
                     ->label('Tipo')
                     ->options(['cliente' => 'Cliente', 'lead' => 'Lead']),
+
+                TernaryFilter::make('con_direccion')
+                    ->label('Dirección')
+                    ->placeholder('Todos')
+                    ->trueLabel('Con dirección')
+                    ->falseLabel('Sin dirección')
+                    ->queries(
+                        true: fn ($query) => $query->whereHas('addresses'),
+                        false: fn ($query) => $query->whereDoesntHave('addresses'),
+                        blank: fn ($query) => $query,
+                    ),
             ])
             ->defaultSort('id', 'desc')
             ->recordActions([
