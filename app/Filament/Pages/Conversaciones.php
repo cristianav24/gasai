@@ -43,6 +43,16 @@ class Conversaciones extends Page
 
     public string $draft = '';
 
+    /** Cuántos mensajes del hilo se muestran (se sube al pedir "ver anteriores"). */
+    public int $threadLimit = self::THREAD_PAGE;
+
+    private const THREAD_PAGE = 40;
+
+    /** Caché por-render del hilo, para no repetir la consulta en la vista. */
+    private ?Collection $threadCache = null;
+
+    private bool $threadHasMore = false;
+
     /** Abre directo la conversación indicada en la URL (?c=ID), ej. desde el push. */
     public function mount(): void
     {
@@ -176,23 +186,56 @@ class Conversaciones extends Page
         ];
     }
 
-    /** @return Collection<int, Message> */
+    /**
+     * Últimos $threadLimit mensajes del hilo, en orden cronológico. No cargamos
+     * todo el historial de golpe: los chats crecen y traerlos completos vuelve la
+     * bandeja lenta. Los más antiguos se piden bajo demanda (loadMore).
+     *
+     * @return Collection<int, Message>
+     */
     public function thread(): Collection
     {
+        if ($this->threadCache !== null) {
+            return $this->threadCache;
+        }
         if (! $this->selectedId) {
-            return collect();
+            return $this->threadCache = collect();
         }
 
-        return Message::where('conversation_id', $this->selectedId)
+        // Traemos uno de más para saber si aún quedan mensajes anteriores.
+        $rows = Message::where('conversation_id', $this->selectedId)
             ->whereIn('role', ['user', 'assistant'])
-            ->orderBy('id')
+            ->orderByDesc('id')
+            ->limit($this->threadLimit + 1)
             ->get();
+
+        $this->threadHasMore = $rows->count() > $this->threadLimit;
+
+        return $this->threadCache = $rows->take($this->threadLimit)->reverse()->values();
+    }
+
+    /** ¿Quedan mensajes más antiguos por cargar en el hilo abierto? */
+    public function hasMoreMessages(): bool
+    {
+        $this->thread(); // asegura el cálculo de $threadHasMore
+
+        return $this->threadHasMore;
+    }
+
+    /** Carga una tanda más de mensajes antiguos (scroll infinito hacia arriba). */
+    public function loadMore(): void
+    {
+        $this->threadLimit += self::THREAD_PAGE;
+        $this->threadCache = null; // recalcula con el nuevo límite
     }
 
     public function select(int $id): void
     {
         $this->selectedId = $id;
         $this->draft = '';
+        $this->threadLimit = self::THREAD_PAGE; // volver a empezar por los últimos
+        $this->threadCache = null;
+        $this->dispatch('conversation-selected'); // móvil: saltar al chat
     }
 
     /**

@@ -148,6 +148,56 @@ class ConversacionesTest extends TestCase
         );
     }
 
+    public function test_el_hilo_carga_por_tandas_y_loadmore_trae_los_antiguos(): void
+    {
+        $c = $this->conversation();
+        // 90 mensajes: más que una tanda (40), para probar la paginación.
+        for ($i = 1; $i <= 90; $i++) {
+            Message::create([
+                'tenant_id' => $this->tenant->id,
+                'conversation_id' => $c->id,
+                'role' => $i % 2 ? 'user' : 'assistant',
+                'content' => "msg {$i}",
+            ]);
+        }
+
+        $comp = Livewire::test(Conversaciones::class)->call('select', $c->id);
+        $inst = $comp->instance();
+
+        // Primera tanda: solo los últimos 40, y en orden cronológico.
+        $this->assertCount(40, $inst->thread());
+        $this->assertTrue($inst->hasMoreMessages());
+        $this->assertSame('msg 51', $inst->thread()->first()->content);
+        $this->assertSame('msg 90', $inst->thread()->last()->content);
+
+        // loadMore trae 40 más; ya solo quedan hasta el 90 desde el 11.
+        $comp->call('loadMore');
+        $inst = $comp->instance();
+        $this->assertCount(80, $inst->thread());
+        $this->assertTrue($inst->hasMoreMessages());
+
+        // Otra tanda cubre los 90; ya no quedan anteriores.
+        $comp->call('loadMore');
+        $inst = $comp->instance();
+        $this->assertCount(90, $inst->thread());
+        $this->assertFalse($inst->hasMoreMessages());
+        $this->assertSame('msg 1', $inst->thread()->first()->content);
+    }
+
+    public function test_seleccionar_otra_conversacion_reinicia_la_paginacion(): void
+    {
+        $c1 = $this->conversation();
+        for ($i = 1; $i <= 60; $i++) {
+            Message::create(['tenant_id' => $this->tenant->id, 'conversation_id' => $c1->id, 'role' => 'user', 'content' => "a{$i}"]);
+        }
+
+        $comp = Livewire::test(Conversaciones::class)->call('select', $c1->id)->call('loadMore');
+        $this->assertSame(80, $comp->get('threadLimit'));
+
+        $comp->call('select', $c1->id); // reabrir vuelve a la primera tanda
+        $this->assertSame(40, $comp->get('threadLimit'));
+    }
+
     public function test_la_bandeja_solo_muestra_conversaciones_del_tenant(): void
     {
         $mia = $this->conversation();

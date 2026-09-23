@@ -81,6 +81,9 @@
         .gx .btime { font-size:.65rem; color:var(--muted); margin:2px .4rem 0; }
         .gx .daysep { text-align:center; margin:.4rem 0; }
         .gx .daysep span { font-size:.72rem; color:var(--muted); background:var(--elev); padding:.15rem .7rem; border-radius:999px; }
+        .gx .load-older { align-self:center; margin:.1rem auto .5rem; font-size:.78rem; font-weight:600; color:var(--muted);
+            background:var(--elev); border:1px solid var(--border); border-radius:999px; padding:.3rem .95rem; cursor:pointer; }
+        .gx .load-older:hover { color:var(--text); }
         .gx .empty { margin: auto; text-align: center; color: var(--muted); }
         .gx .empty svg { width: 42px; height: 42px; margin: 0 auto .6rem; opacity: .5; }
         .gx .foot { padding: .8rem 1rem; border-top: 1px solid var(--border); }
@@ -139,7 +142,7 @@
         </div>
 
         {{-- Thread --}}
-        <div class="panel">
+        <div class="panel" id="gx-thread">
             <div class="thread-wrap">
                 @if (! $selected)
                     @if ($listCollapsed)
@@ -183,9 +186,40 @@
                         </div>
                     </div>
 
-                    <div class="body" x-data="{}"
-                         x-init="() => { const el=$el; const b=()=>el.scrollTop=el.scrollHeight; b();
-                                         new MutationObserver(b).observe(el,{childList:true,subtree:true}); }">
+                    {{-- El cuerpo del chat: se ancla al fondo con mensajes nuevos, pero al
+                         subir carga los antiguos SIN saltar (scroll infinito hacia arriba). --}}
+                    <div class="body" wire:key="body-{{ $selectedId }}" x-data="{ pin: true }"
+                         x-init="
+                            const el = $el;
+                            const nearBottom = () => el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+                            el.addEventListener('scroll', () => { pin = nearBottom(); });
+                            const toBottom = () => { el.scrollTop = el.scrollHeight; };
+                            $nextTick(() => toBottom());
+                            new MutationObserver(() => {
+                                if (window.__gxAnchor) {          // acabamos de prepender antiguos
+                                    el.scrollTop = el.scrollHeight - window.__gxPrevH;
+                                    window.__gxAnchor = false; window.__gxLoading = false;
+                                    return;
+                                }
+                                if (pin) toBottom();               // mensaje nuevo: seguir al fondo
+                            }).observe(el, { childList: true, subtree: true });
+                            const sentinel = el.querySelector('.load-older');
+                            if (sentinel) new IntersectionObserver((e) => {
+                                if (e[0].isIntersecting && !window.__gxLoading) {
+                                    window.__gxLoading = true;
+                                    window.__gxPrevH = el.scrollHeight;
+                                    window.__gxAnchor = true;
+                                    $wire.loadMore();
+                                }
+                            }, { root: el }).observe(sentinel);
+                         ">
+                        @if ($this->hasMoreMessages())
+                            <button type="button" class="load-older" wire:key="load-older-{{ $selectedId }}" wire:click="loadMore"
+                                    x-on:click="window.__gxPrevH = $el.closest('.body').scrollHeight; window.__gxAnchor = true; window.__gxLoading = true;">
+                                <span wire:loading.remove wire:target="loadMore">Ver mensajes anteriores</span>
+                                <span wire:loading wire:target="loadMore">Cargando…</span>
+                            </button>
+                        @endif
                         @php($lastDay = null)
                         @forelse ($this->thread() as $m)
                             @php($day = $m->created_at?->timezone($tz)->format('Y-m-d'))
@@ -193,7 +227,7 @@
                                 <div class="daysep"><span>{{ $m->created_at?->timezone($tz)->isoFormat('D [de] MMMM') }}</span></div>
                                 @php($lastDay = $day)
                             @endif
-                            <div class="msg {{ $m->role === 'user' ? 'in' : 'out' }}">
+                            <div class="msg {{ $m->role === 'user' ? 'in' : 'out' }}" wire:key="msg-{{ $m->id }}">
                                 <div class="bubble {{ $m->role === 'user' ? 'in' : 'out' }}">{{ $m->content }}</div>
                                 <span class="btime">{{ $m->created_at?->timezone($tz)->format('H:i') }}</span>
                             </div>
@@ -288,4 +322,20 @@
             @endif
         </div>
     </div>
+
+    {{-- Móvil: al elegir una conversación, saltar directo al chat (no bajar toda la lista). --}}
+    <script>
+        (function () {
+            if (window.__gxConvBound) return;
+            window.__gxConvBound = true;
+            const bind = () => Livewire.on('conversation-selected', () => {
+                if (window.innerWidth <= 800) {
+                    requestAnimationFrame(() =>
+                        document.getElementById('gx-thread')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                }
+            });
+            if (window.Livewire) bind();
+            else document.addEventListener('livewire:init', bind);
+        })();
+    </script>
 </x-filament-panels::page>
