@@ -84,15 +84,26 @@ class SystemPromptBuilder
         }
 
         // --- Catálogo con precios reales ---
+        // Si el negocio cobra envío por distancia, el precio final depende de la
+        // dirección (el envío va prorrateado DENTRO del precio). En ese caso NO
+        // mostramos el precio base en el catálogo: si el bot lo cotizara antes de
+        // tener la dirección, luego no cuadraría con el total (S/10 -> S/11) y el
+        // cliente reclamaría. El precio lo da calcular_total, ya con el envío.
+        $reparto_por_distancia = filled($tenant->delivery_bands) && $tenant->delivery_center_lat !== null;
         $productos = Product::withoutGlobalScopes()->where('tenant_id', $tenant->id)
             ->where('active', true)->orderBy('name')->get();
         if ($productos->isNotEmpty()) {
-            $lineas = $productos->map(function (Product $p): string {
-                $precio = number_format((float) $p->price, 2);
+            $lineas = $productos->map(function (Product $p) use ($reparto_por_distancia): string {
                 $tipo = $p->type === 'recarga' ? 'recarga' : 'venta';
+                if ($reparto_por_distancia) {
+                    return "- [#{$p->id}] {$p->name} (por {$p->unit}, {$tipo})";
+                }
+                $precio = number_format((float) $p->price, 2);
                 return "- [#{$p->id}] {$p->name}: S/ {$precio} por {$p->unit} ({$tipo})";
             })->implode("\n");
-            $partes[] = "Catálogo de productos (usa estos IDs y precios):\n{$lineas}";
+            $partes[] = $reparto_por_distancia
+                ? "Catálogo de productos (usa estos IDs). El PRECIO no está aquí a propósito: lo da calcular_total/crear_pedido con la dirección (ya incluye el envío). NUNCA cotices un precio de memoria:\n{$lineas}"
+                : "Catálogo de productos (usa estos IDs y precios):\n{$lineas}";
         } else {
             $partes[] = 'El negocio todavía no cargó productos.';
         }
@@ -110,12 +121,16 @@ class SystemPromptBuilder
         }
 
         // --- Cobro de envío por distancia (mecánica INTERNA; el cliente solo ve el total) ---
-        if (filled($tenant->delivery_bands) && $tenant->delivery_center_lat !== null) {
+        if ($reparto_por_distancia) {
             $partes[] = 'Reparto (interno, no se lo expliques al cliente): el sistema calcula el envío automáticamente por la distancia '
-                . 'desde el local hasta la dirección. Por eso, valida y guarda la dirección con su ubicación (validar_direccion o la '
-                . 'ubicación por WhatsApp) ANTES de dar el total, y llama a calcular_total y crear_pedido pasando la direccion_id: el '
-                . 'sistema pone el costo correcto y lo suma al total. El cliente solo ve el total. Si el sistema indica que la dirección '
-                . 'está fuera del área de cobertura, dile con amabilidad que por ahora no llegamos hasta esa zona (sin hablar de kilómetros) y no agendes.';
+                . 'desde el local hasta la dirección, y lo suma DENTRO del precio. Por eso NUNCA le des al cliente un precio ni un total '
+                . 'antes de tener su dirección guardada con ubicación: si lo haces, el número cambiará al armar el pedido y el cliente '
+                . 'reclamará. Si te pregunta el precio antes de darte su dirección, NO sueltes una cifra: dile con amabilidad que le das el '
+                . 'precio exacto (con la entrega ya incluida) apenas te pase su dirección, y pídesela. Flujo correcto: primero guarda la '
+                . 'dirección con su ubicación (guardar_direccion con dirección + distrito, o la ubicación por WhatsApp), y RECIÉN entonces '
+                . 'llama a calcular_total / crear_pedido con la direccion_id y cotiza el precio_con_envio que devuelven. El cliente solo ve '
+                . 'ese total final. Si el sistema indica que la dirección está fuera del área de cobertura, dile con amabilidad que por ahora '
+                . 'no llegamos hasta esa zona (sin hablar de kilómetros) y no agendes.';
         }
 
         // --- Base de conocimiento (respetando el límite de tamaño) ---
