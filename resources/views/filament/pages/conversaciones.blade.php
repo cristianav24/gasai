@@ -15,8 +15,11 @@
         .gx { display: grid; grid-template-columns: 340px 1fr 320px; gap: 1rem;
               height: calc(100vh - 130px); align-items: stretch; transition: grid-template-columns .18s ease; }
         .gx.collapsed { grid-template-columns: 1fr 320px; }
-        @media (max-width: 1100px) { .gx, .gx.collapsed { grid-template-columns: 320px 1fr; } .gx .details { display: none; } }
-        @media (max-width: 800px) { .gx, .gx.collapsed { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 130px); } }
+        .gx.details-collapsed { grid-template-columns: 340px 1fr; }
+        .gx.collapsed.details-collapsed { grid-template-columns: 1fr; }
+        .gx.details-collapsed .details { display: none; }
+        @media (max-width: 1100px) { .gx, .gx.collapsed, .gx.details-collapsed, .gx.collapsed.details-collapsed { grid-template-columns: 320px 1fr; } .gx .details { display: none; } }
+        @media (max-width: 800px) { .gx, .gx.collapsed, .gx.details-collapsed, .gx.collapsed.details-collapsed { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 130px); } }
         .gx .collapse-btn, .gx .expand-btn { display:flex; align-items:center; justify-content:center; width:30px; height:30px;
             border-radius:.5rem; border:1px solid var(--border); background:var(--elev); color:var(--muted); cursor:pointer; }
         .gx .collapse-btn:hover, .gx .expand-btn:hover { color:var(--text); }
@@ -84,13 +87,28 @@
         .gx .load-older { align-self:center; margin:.1rem auto .5rem; font-size:.78rem; font-weight:600; color:var(--muted);
             background:var(--elev); border:1px solid var(--border); border-radius:999px; padding:.3rem .95rem; cursor:pointer; }
         .gx .load-older:hover { color:var(--text); }
+        /* Media en burbujas */
+        .gx .bimg { max-width: 240px; max-height: 280px; border-radius: .7rem; display:block; }
+        .gx .bfile { display:flex; align-items:center; gap:.4rem; font-weight:600; color:inherit; text-decoration:none; }
+        .gx .bfile svg { width:18px; height:18px; flex:0 0 18px; }
+        .gx .bcap { margin-top:.35rem; font-size:.86rem; }
+        /* Barra de adjuntar */
+        .gx .attach-preview { display:flex; align-items:center; gap:.5rem; font-size:.82rem; margin-bottom:.5rem;
+            background:var(--elev); border:1px solid var(--border); border-radius:.6rem; padding:.4rem .6rem; }
+        .gx .attach-preview .fname { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%; }
+        .gx .attach-preview button { margin-left:auto; border:0; background:transparent; color:var(--muted); cursor:pointer; font-size:1rem; }
+        .gx .attach-preview button:hover { color:#ef4444; }
+        .gx .attach-btn { display:flex; align-items:center; justify-content:center; width:38px; height:38px; flex:0 0 38px;
+            border:1px solid var(--border); border-radius:.6rem; background:var(--elev); color:var(--muted); cursor:pointer; }
+        .gx .attach-btn:hover { color:var(--text); }
+        .gx .hidden-file { display:none; }
         .gx .empty { margin: auto; text-align: center; color: var(--muted); }
         .gx .empty svg { width: 42px; height: 42px; margin: 0 auto .6rem; opacity: .5; }
         .gx .foot { padding: .8rem 1rem; border-top: 1px solid var(--border); }
     </style>
 
     @php($tz = \Filament\Facades\Filament::getTenant()?->timezone ?: 'America/Lima')
-    <div class="gx {{ $listCollapsed ? 'collapsed' : '' }}">
+    <div class="gx {{ $listCollapsed ? 'collapsed' : '' }} {{ $detailsCollapsed ? 'details-collapsed' : '' }}">
         {{-- Lista --}}
         <div class="panel" @if($listCollapsed) style="display:none;" @endif>
             @php($cnt = $this->counts())
@@ -177,12 +195,16 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 items-center">
                             @if ($selected->status === 'humano')
                                 <x-filament::button size="xs" color="gray" icon="heroicon-o-arrow-uturn-left" wire:click="returnToBot">Devolver al agente</x-filament::button>
                             @else
                                 <x-filament::button size="xs" icon="heroicon-o-hand-raised" wire:click="takeControl">Tomar control</x-filament::button>
                             @endif
+                            <button class="collapse-btn" wire:click="toggleDetails"
+                                title="{{ $detailsCollapsed ? 'Mostrar datos del cliente' : 'Ocultar datos del cliente' }}">
+                                <x-heroicon-o-information-circle style="width:16px;height:16px;" />
+                            </button>
                         </div>
                     </div>
 
@@ -227,8 +249,24 @@
                                 <div class="daysep"><span>{{ $m->created_at?->timezone($tz)->isoFormat('D [de] MMMM') }}</span></div>
                                 @php($lastDay = $day)
                             @endif
+                            @php($media = is_array($m->raw_payload ?? null) ? ($m->raw_payload['local_media'] ?? null) : null)
                             <div class="msg {{ $m->role === 'user' ? 'in' : 'out' }}" wire:key="msg-{{ $m->id }}">
-                                <div class="bubble {{ $m->role === 'user' ? 'in' : 'out' }}">{{ $m->content }}</div>
+                                <div class="bubble {{ $m->role === 'user' ? 'in' : 'out' }}">
+                                    @if ($media)
+                                        @if ($media['type'] === 'image')
+                                            <a href="{{ $media['url'] }}" target="_blank" rel="noopener"><img src="{{ $media['url'] }}" class="bimg" alt="imagen"></a>
+                                        @elseif ($media['type'] === 'video')
+                                            <video src="{{ $media['url'] }}" controls class="bimg"></video>
+                                        @elseif ($media['type'] === 'audio')
+                                            <audio src="{{ $media['url'] }}" controls style="max-width:220px;"></audio>
+                                        @else
+                                            <a href="{{ $media['url'] }}" target="_blank" rel="noopener" class="bfile"><x-heroicon-s-document-arrow-down /> {{ $media['filename'] }}</a>
+                                        @endif
+                                        @if (!empty($media['caption']))<div class="bcap">{{ $media['caption'] }}</div>@endif
+                                    @else
+                                        {{ $m->content }}
+                                    @endif
+                                </div>
                                 <span class="btime">{{ $m->created_at?->timezone($tz)->format('H:i') }}</span>
                             </div>
                         @empty
@@ -238,13 +276,31 @@
 
                     <div class="foot">
                         @if ($selected->status === 'humano')
-                            <form wire:submit="sendMessage" class="flex gap-2 items-end">
+                            @if ($attachment)
+                                <div class="attach-preview">
+                                    <x-heroicon-s-paper-clip style="width:15px;height:15px;" />
+                                    <span class="fname">{{ $attachment->getClientOriginalName() }}</span>
+                                    <span class="muted" wire:loading wire:target="attachment">subiendo…</span>
+                                    <button type="button" wire:click="$set('attachment', null)" title="Quitar">✕</button>
+                                </div>
+                            @endif
+                            @error('attachment')<p class="text-xs" style="color:#ef4444;margin-bottom:.4rem;">{{ $message }}</p>@enderror
+                            <form wire:submit="{{ $attachment ? 'sendFile' : 'sendMessage' }}" class="flex gap-2 items-end">
+                                <label class="attach-btn" title="Adjuntar archivo">
+                                    <x-heroicon-o-paper-clip style="width:18px;height:18px;" />
+                                    <input type="file" wire:model="attachment" class="hidden-file"
+                                           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
+                                </label>
                                 <div class="flex-1">
                                     <x-filament::input.wrapper>
-                                        <x-filament::input type="text" wire:model="draft" placeholder="Escribe tu respuesta…" />
+                                        <x-filament::input type="text" wire:model="draft"
+                                            placeholder="{{ $attachment ? 'Descripción (opcional)…' : 'Escribe tu respuesta…' }}" />
                                     </x-filament::input.wrapper>
                                 </div>
-                                <x-filament::button type="submit" icon="heroicon-o-paper-airplane">Enviar</x-filament::button>
+                                <x-filament::button type="submit" icon="heroicon-o-paper-airplane"
+                                    wire:loading.attr="disabled" wire:target="attachment">
+                                    {{ $attachment ? 'Enviar archivo' : 'Enviar' }}
+                                </x-filament::button>
                             </form>
                         @else
                             <p class="text-xs muted">Toma el control para responder manualmente al cliente.</p>

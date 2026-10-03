@@ -11,6 +11,8 @@ use App\Models\WhatsappAccount;
 use App\Services\WhatsApp\WhatsAppGateway;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\Support\FakeWhatsAppGateway;
 use Tests\TestCase;
@@ -120,6 +122,45 @@ class ConversacionesTest extends TestCase
 
         $this->assertDatabaseHas('messages', ['conversation_id' => $c->id, 'content' => 'Mensaje tardío']);
         $this->assertCount(0, $this->gateway->sent); // no se envió
+    }
+
+    public function test_el_operador_envia_un_archivo_por_whatsapp(): void
+    {
+        Storage::fake('public');
+        WhatsappAccount::withoutGlobalScopes()->create([
+            'tenant_id' => $this->tenant->id,
+            'phone_number_id' => 'PHONE_1', 'access_token' => 'token', 'status' => 'connected',
+        ]);
+
+        $c = $this->conversation();
+        $c->update(['status' => 'humano', 'assigned_user_id' => $this->operator->id]);
+
+        Livewire::test(Conversaciones::class)
+            ->call('select', $c->id)
+            ->set('attachment', UploadedFile::fake()->image('comprobante.jpg'))
+            ->set('draft', 'Aquí tu comprobante')
+            ->call('sendFile');
+
+        // Se registró como saliente con la media local y su descripción.
+        $msg = Message::where('conversation_id', $c->id)->where('role', 'assistant')->latest('id')->first();
+        $this->assertNotNull($msg);
+        $this->assertSame('image', $msg->raw_payload['local_media']['type']);
+        $this->assertSame('Aquí tu comprobante', $msg->raw_payload['local_media']['caption']);
+
+        // Se envió por el gateway como media (no como texto).
+        $this->assertCount(1, $this->gateway->sentMedia);
+        $this->assertSame('image', $this->gateway->sentMedia[0]['type']);
+        $this->assertSame('+51987654321', $this->gateway->sentMedia[0]['to']);
+    }
+
+    public function test_toggle_oculta_y_restaura_el_panel_de_datos(): void
+    {
+        Livewire::test(Conversaciones::class)
+            ->assertSet('detailsCollapsed', false)
+            ->call('toggleDetails')
+            ->assertSet('detailsCollapsed', true)
+            ->call('toggleDetails')
+            ->assertSet('detailsCollapsed', false);
     }
 
     public function test_toggle_minimiza_y_restaura_la_lista(): void

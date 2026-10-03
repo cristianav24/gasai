@@ -57,6 +57,76 @@ class CloudApiGateway implements WhatsAppGateway
         }
     }
 
+    public function sendMedia(
+        WhatsappAccount $account,
+        string $recipient,
+        string $type,
+        string $absolutePath,
+        string $mime,
+        string $filename,
+        ?string $caption = null,
+    ): array {
+        try {
+            // Paso 1: subir el archivo a Meta -> devuelve un media id reutilizable.
+            $upload = $this->http
+                ->baseUrl($this->endpoint($account->phone_number_id))
+                ->withToken($account->access_token)
+                ->acceptJson()
+                ->attach('file', fopen($absolutePath, 'r'), $filename, ['Content-Type' => $mime])
+                ->post('/media', ['messaging_product' => 'whatsapp', 'type' => $mime]);
+
+            if ($upload->failed()) {
+                return ['ok' => false, 'error' => "Meta (subida) respondió {$upload->status()}: " . $upload->body()];
+            }
+
+            $mediaId = $upload->json('id');
+            if (! $mediaId) {
+                return ['ok' => false, 'error' => 'Meta no devolvió un media id.'];
+            }
+
+            // Paso 2: enviar el mensaje con ese media id.
+            $node = ['id' => $mediaId];
+            if ($type === 'document') {
+                $node['filename'] = $filename;
+            }
+            if (filled($caption) && in_array($type, ['image', 'video', 'document'], true)) {
+                $node['caption'] = $caption;
+            }
+
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'recipient_type' => 'individual',
+                'type' => $type,
+                $type => $node,
+            ];
+            if ($this->isPhoneNumber($recipient)) {
+                $payload['to'] = $recipient;
+            } else {
+                $payload['recipient'] = $recipient;
+            }
+
+            $response = $this->http
+                ->baseUrl($this->endpoint($account->phone_number_id))
+                ->withToken($account->access_token)
+                ->acceptJson()
+                ->post('/messages', $payload);
+
+            if ($response->failed()) {
+                return ['ok' => false, 'error' => "Meta respondió {$response->status()}: " . $response->body()];
+            }
+
+            return [
+                'ok' => true,
+                'media_id' => $mediaId,
+                'wa_message_id' => $response->json('messages.0.id'),
+            ];
+        } catch (Throwable $e) {
+            report($e);
+
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+
     public function verifyCredentials(WhatsappAccount $account): array
     {
         try {

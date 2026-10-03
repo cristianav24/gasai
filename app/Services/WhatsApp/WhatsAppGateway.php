@@ -19,6 +19,23 @@ interface WhatsAppGateway
     public function sendText(WhatsappAccount $account, string $toPhone, string $text): array;
 
     /**
+     * Envía un archivo (imagen, documento, audio o video) a un número. Sube el
+     * archivo a Meta y luego manda el mensaje con el media id resultante.
+     *
+     * @param  string  $type  image|document|audio|video
+     * @return array{ok: bool, wa_message_id?: string, media_id?: string, error?: string}
+     */
+    public function sendMedia(
+        WhatsappAccount $account,
+        string $toPhone,
+        string $type,
+        string $absolutePath,
+        string $mime,
+        string $filename,
+        ?string $caption = null,
+    ): array;
+
+    /**
      * Verifica que las credenciales de la cuenta funcionan (para el botón "probar conexión").
      *
      * @return array{ok: bool, error?: string}

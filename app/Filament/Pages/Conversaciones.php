@@ -12,6 +12,10 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 /**
  * Bandeja de handoff: el operador ve las conversaciones, toma el control de un
@@ -19,6 +23,8 @@ use Illuminate\Support\Collection;
  */
 class Conversaciones extends Page
 {
+    use WithFileUploads;
+
     protected string $view = 'filament.pages.conversaciones';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInbox;
@@ -62,12 +68,23 @@ class Conversaciones extends Page
         }
     }
 
+    /** Archivo adjunto que el operador está por enviar (imagen/documento/etc.). */
+    public $attachment = null;
+
     /** Colapsar la lista de conversaciones para dar más espacio al chat. */
     public bool $listCollapsed = false;
 
     public function toggleList(): void
     {
         $this->listCollapsed = ! $this->listCollapsed;
+    }
+
+    /** Colapsar el panel derecho (datos del cliente) para ensanchar el chat. */
+    public bool $detailsCollapsed = false;
+
+    public function toggleDetails(): void
+    {
+        $this->detailsCollapsed = ! $this->detailsCollapsed;
     }
 
     /** Pestaña activa: all | bot | humano. */
@@ -327,5 +344,92 @@ class Conversaciones extends Page
         }
 
         $this->draft = '';
+    }
+
+    /**
+     * Envía el archivo adjunto al cliente por WhatsApp. El texto del cuadro (draft)
+     * viaja como descripción (caption). Guarda el archivo en el disco público para
+     * mostrarlo en el hilo. Igual que el texto: solo se manda dentro de las 24 h.
+     */
+    public function sendFile(WhatsAppGateway $gateway): void
+    {
+        $conversation = $this->selected();
+        if (! $conversation || ! $this->attachment) {
+            return;
+        }
+
+        $this->validate(
+            ['attachment' => 'file|max:16384'], // 16 MB
+            ['attachment.max' => 'El archivo no puede superar 16 MB.'],
+        );
+
+        /** @var TemporaryUploadedFile $file */
+        $file = $this->attachment;
+        $mime = $file->getMimeType() ?: 'application/octet-stream';
+        $type = $this->mediaTypeFor($mime);
+        $original = $file->getClientOriginalName() ?: ('archivo.' . ($file->getClientOriginalExtension() ?: 'bin'));
+        $caption = trim($this->draft);
+
+        // Guardamos en el disco público para poder mostrarlo en el panel.
+        $stored = $file->storeAs(
+            'whatsapp/out/' . $conversation->tenant_id,
+            Str::random(24) . '-' . Str::slug(pathinfo($original, PATHINFO_FILENAME)) . '.' . ($file->getClientOriginalExtension() ?: 'bin'),
+            'public',
+        );
+        $url = Storage::disk('public')->url($stored);
+
+        $label = match ($type) {
+            'image' => '📷 Imagen',
+            'video' => '🎥 Video',
+            'audio' => '🎙️ Audio',
+            default => '📎 ' . $original,
+        } . ($caption !== '' ? ' · ' . $caption : '');
+
+        $conversation->messages()->create([
+            'tenant_id' => $conversation->tenant_id,
+            'role' => 'assistant',
+            'content' => $label,
+            'raw_payload' => ['local_media' => [
+                'url' => $url, 'type' => $type, 'mime' => $mime, 'filename' => $original, 'caption' => $caption ?: null,
+            ]],
+        ]);
+        $conversation->update(['last_activity_at' => now()]);
+
+        if ($conversation->channel === 'whatsapp') {
+            if (! $conversation->within24hWindow()) {
+                Notification::make()->warning()
+                    ->title('Fuera de la ventana de 24h')
+                    ->body('El archivo quedó registrado pero WhatsApp no permite enviarlo fuera de 24h.')
+                    ->send();
+            } else {
+                $account = WhatsappAccount::where('tenant_id', $conversation->tenant_id)->first();
+                $recipient = $conversation->phone ?: $conversation->wa_user_id;
+                if ($account && filled($recipient)) {
+                    $result = $gateway->sendMedia(
+                        $account, $recipient, $type,
+                        Storage::disk('public')->path($stored), $mime, $original,
+                        $caption !== '' ? $caption : null,
+                    );
+                    if (! ($result['ok'] ?? false)) {
+                        Notification::make()->danger()->title('No se pudo enviar el archivo')
+                            ->body($result['error'] ?? '')->send();
+                    }
+                }
+            }
+        }
+
+        $this->reset('attachment');
+        $this->draft = '';
+    }
+
+    /** Mapea el mime del archivo al tipo de media de WhatsApp. */
+    private function mediaTypeFor(string $mime): string
+    {
+        return match (true) {
+            str_starts_with($mime, 'image/') => 'image',
+            str_starts_with($mime, 'video/') => 'video',
+            str_starts_with($mime, 'audio/') => 'audio',
+            default => 'document',
+        };
     }
 }
